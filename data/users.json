@@ -30,5 +30,15 @@
     "phone": "9999999999",
     "whatsapp": "9999999999",
     "createdAt": "2025-03-03T10:00:00.000Z"
+  },
+  {
+    "id": "5ad076a5-bcf5-4a40-ab0b-41e6d77ea99b",
+    "name": "Lucky",
+    "email": "lucky@gmail.com",
+    "password": "$2b$10$0CCCAZlPeysQo6dnyIqoO.cXd3OlEu69gJd.ApOGkrv4IqqZ/QOde",
+    "role": "rider",
+    "phone": "8000555555",
+    "whatsapp": "8000555555",
+    "createdAt": "2025-03-08T16:11:00.577Z"
   }
 ]

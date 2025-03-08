@@ -166,6 +166,10 @@ export default function Register() {
                 Want to register as a vendor?{' '}
                 <Link href="/auth/register/vendor">Register as Vendor</Link>
               </p>
+              <p>
+                Want to register as a rider?{' '}
+                <Link href="/auth/register/rider">Register as Rider</Link>
+              </p>
             </div>
           </Form>
         </Col>

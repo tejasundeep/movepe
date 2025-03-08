@@ -243,8 +243,12 @@ export default function VendorRegister() {
                 <Link href="/auth/signin">Sign In</Link>
               </p>
               <p>
-                Want to register as a user?{' '}
+                Want to register as a regular user?{' '}
                 <Link href="/auth/register">Register as User</Link>
+              </p>
+              <p>
+                Want to register as a rider?{' '}
+                <Link href="/auth/register/rider">Register as Rider</Link>
               </p>
             </div>
           </Form>

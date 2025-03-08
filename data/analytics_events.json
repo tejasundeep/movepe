@@ -60,5 +60,21 @@
       "itemName": "Sofa"
     },
     "timestamp": "2025-03-01T23:36:50.858Z"
+  },
+  {
+    "eventType": "rider_created",
+    "eventData": {
+      "riderId": "d3be2db4-22a4-49b6-b1fd-3538b4a98d4e",
+      "email": "lucky@gmail.com"
+    },
+    "timestamp": "2025-03-08T15:53:03.676Z"
+  },
+  {
+    "eventType": "rider_created",
+    "eventData": {
+      "riderId": "6631d8fb-23f6-45ed-a24b-3111a92a34af",
+      "email": "lucky@gmail.com"
+    },
+    "timestamp": "2025-03-08T16:11:00.733Z"
   }
 ]

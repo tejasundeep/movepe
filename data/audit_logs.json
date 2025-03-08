@@ -1,5 +1,106 @@
 [
   {
+    "id": "audit_1741448736150_cnrhyq4e",
+    "adminEmail": "admin@movepe.com",
+    "action": "view_users_list",
+    "entityType": "user",
+    "entityId": "all",
+    "details": {
+      "count": 3
+    },
+    "timestamp": "2025-03-08T15:45:36.150Z"
+  },
+  {
+    "id": "audit_1741448736113_xjpuznaj",
+    "adminEmail": "admin@movepe.com",
+    "action": "view_users_list",
+    "entityType": "user",
+    "entityId": "all",
+    "details": {
+      "count": 3
+    },
+    "timestamp": "2025-03-08T15:45:36.113Z"
+  },
+  {
+    "id": "audit_1741448732868_qxyt18aa",
+    "adminEmail": "admin@movepe.com",
+    "action": "view_users_list",
+    "entityType": "user",
+    "entityId": "all",
+    "details": {
+      "count": 3
+    },
+    "timestamp": "2025-03-08T15:45:32.868Z"
+  },
+  {
+    "id": "audit_1741448714928_y4oormle",
+    "adminEmail": "admin@movepe.com",
+    "action": "view_users_list",
+    "entityType": "user",
+    "entityId": "all",
+    "details": {
+      "count": 4
+    },
+    "timestamp": "2025-03-08T15:45:14.928Z"
+  },
+  {
+    "id": "audit_1741448714866_6cb58568",
+    "adminEmail": "admin@movepe.com",
+    "action": "view_users_list",
+    "entityType": "user",
+    "entityId": "all",
+    "details": {
+      "count": 4
+    },
+    "timestamp": "2025-03-08T15:45:14.866Z"
+  },
+  {
+    "id": "audit_1741448706128_k4dl4bgl",
+    "adminEmail": "admin@movepe.com",
+    "action": "view_users_list",
+    "entityType": "user",
+    "entityId": "all",
+    "details": {
+      "count": 4
+    },
+    "timestamp": "2025-03-08T15:45:06.128Z"
+  },
+  {
+    "id": "audit_1741448706050_4zx8m85u",
+    "adminEmail": "admin@movepe.com",
+    "action": "create_user",
+    "entityType": "user",
+    "entityId": "d346cb39-38fa-4f00-afa7-6562ccca7dcc",
+    "details": {
+      "name": "Lucky",
+      "email": "lucky@gmail.com",
+      "role": "user"
+    },
+    "timestamp": "2025-03-08T15:45:06.050Z"
+  },
+  {
+    "id": "audit_1741448664696_t3dx1xc1",
+    "adminEmail": "admin@movepe.com",
+    "action": "view_users_list",
+    "entityType": "user",
+    "entityId": "all",
+    "details": {
+      "count": 3
+    },
+    "timestamp": "2025-03-08T15:44:24.696Z"
+  },
+  {
+    "id": "audit_1741448664660_za7bxvka",
+    "adminEmail": "admin@movepe.com",
+    "action": "view_users_list",
+    "entityType": "user",
+    "entityId": "all",
+    "details": {
+      "count": 3
+    },
+    "timestamp": "2025-03-08T15:44:24.660Z"
+  },
+  {
     "id": "audit_1741427001130_gtg54ksf",
     "adminEmail": "admin@movepe.com",
     "action": "view_users_list",

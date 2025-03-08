@@ -2,16 +2,50 @@
   {
     "pincode": "110001",
     "city": "New Delhi",
-    "state": "Delhi"
+    "state": "Delhi",
+    "lat": "28.6139",
+    "lon": "77.2090"
   },
   {
     "pincode": "400001",
     "city": "Mumbai",
-    "state": "Maharashtra"
+    "state": "Maharashtra",
+    "lat": "18.9387",
+    "lon": "72.8353"
   },
   {
     "pincode": "700001",
     "city": "Kolkata",
-    "state": "West Bengal"
+    "state": "West Bengal",
+    "lat": "22.5726",
+    "lon": "88.3639"
+  },
+  {
+    "pincode": "110002",
+    "city": "New Delhi",
+    "state": "Delhi",
+    "lat": "28.6329",
+    "lon": "77.2195"
+  },
+  {
+    "pincode": "110003",
+    "city": "New Delhi",
+    "state": "Delhi",
+    "lat": "28.6508",
+    "lon": "77.2373"
+  },
+  {
+    "pincode": "400002",
+    "city": "Mumbai",
+    "state": "Maharashtra",
+    "lat": "18.9548",
+    "lon": "72.8224"
+  },
+  {
+    "pincode": "400003",
+    "city": "Mumbai",
+    "state": "Maharashtra",
+    "lat": "18.9631",
+    "lon": "72.8375"
   }
 ] 

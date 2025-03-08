@@ -14,16 +14,16 @@ async function updateAvailability(request) {
       )
     }
 
-    const { status } = await request.json()
-    if (!['available', 'busy', 'vacation'].includes(status)) {
+    const { availability } = await request.json()
+    if (!['available', 'unavailable'].includes(availability)) {
       return NextResponse.json(
-        { error: 'Invalid status' },
+        { error: 'Invalid availability status. Must be "available" or "unavailable".' },
         { status: 400 }
       )
     }
 
     // Update vendor availability using the vendor service
-    const updatedVendor = await vendorService.updateAvailability(session.user.email, status)
+    const updatedVendor = await vendorService.updateAvailability(session.user.email, availability)
 
     return NextResponse.json({ 
       success: true,

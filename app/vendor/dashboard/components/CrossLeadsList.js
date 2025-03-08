@@ -69,6 +69,10 @@ export default function CrossLeadsList() {
         return <Badge bg="info">Quotes Received</Badge>
       case 'Completed':
         return <Badge bg="success">Completed</Badge>
+      case 'Paid':
+        return <Badge bg="success">Paid</Badge>
+      case 'Converted':
+        return <Badge bg="success">Converted</Badge>
       default:
         return <Badge bg="secondary">{status}</Badge>
     }
@@ -109,7 +113,7 @@ export default function CrossLeadsList() {
   if (!Array.isArray(crossLeads) || crossLeads.length === 0) {
     return (
       <Alert variant="info">
-        You haven't submitted any cross leads yet. Submit a cross lead by referring a customer to earn a 15% commission discount on your future orders.
+        You haven't submitted any cross leads yet. Submit a cross lead by referring a customer to earn a 5% commission discount on your future orders.
       </Alert>
     )
   }

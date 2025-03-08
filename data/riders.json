@@ -1,0 +1,109 @@
+[
+  {
+    "riderId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "name": "John Rider",
+    "email": "john.rider@example.com",
+    "phone": "9876543210",
+    "whatsapp": "9876543210",
+    "currentLocation": {
+      "lat": "12.9716",
+      "lon": "77.5946",
+      "lastUpdated": "2023-03-01T12:00:00.000Z"
+    },
+    "serviceAreas": [
+      "560001",
+      "560002",
+      "560003"
+    ],
+    "status": "available",
+    "rating": 4.5,
+    "vehicleDetails": {
+      "type": "motorcycle",
+      "model": "Honda CB Shine",
+      "year": "2020",
+      "licensePlate": "KA-01-AB-1234",
+      "drivingLicense": "KA0120201234567"
+    },
+    "deliveryCapacity": {
+      "maxWeight": 10,
+      "maxDimensions": {
+        "length": 50,
+        "width": 40,
+        "height": 30
+      }
+    },
+    "completedDeliveries": 120,
+    "createdAt": "2023-01-01T10:00:00.000Z"
+  },
+  {
+    "riderId": "e47ac10b-58cc-4372-a567-0e02b2c3d480",
+    "name": "Raj Kumar",
+    "email": "raj.kumar@example.com",
+    "phone": "8765432109",
+    "whatsapp": "8765432109",
+    "currentLocation": {
+      "lat": "12.9816",
+      "lon": "77.6046",
+      "lastUpdated": "2023-03-01T12:30:00.000Z"
+    },
+    "serviceAreas": [
+      "560004",
+      "560005",
+      "560006"
+    ],
+    "status": "busy",
+    "rating": 4.8,
+    "vehicleDetails": {
+      "type": "scooter",
+      "model": "TVS Jupiter",
+      "year": "2021",
+      "licensePlate": "KA-01-CD-5678",
+      "drivingLicense": "KA0120205678901"
+    },
+    "deliveryCapacity": {
+      "maxWeight": 8,
+      "maxDimensions": {
+        "length": 45,
+        "width": 35,
+        "height": 25
+      }
+    },
+    "completedDeliveries": 85,
+    "createdAt": "2023-02-01T11:00:00.000Z"
+  },
+  {
+    "riderId": "6631d8fb-23f6-45ed-a24b-3111a92a34af",
+    "name": "Lucky",
+    "email": "lucky@gmail.com",
+    "phone": "8000555555",
+    "whatsapp": "8000555555",
+    "currentLocation": {
+      "lat": "0",
+      "lon": "0",
+      "lastUpdated": "2025-03-08T16:11:00.614Z"
+    },
+    "serviceAreas": [
+      "110001",
+      "400001"
+    ],
+    "status": "approved",
+    "rating": 0,
+    "vehicleDetails": {
+      "type": "motorcycle",
+      "model": "Activa",
+      "year": "2019",
+      "licensePlate": "AP37DF2285",
+      "drivingLicense": "xyz"
+    },
+    "deliveryCapacity": {
+      "maxWeight": 10,
+      "maxDimensions": {
+        "length": 50,
+        "width": 40,
+        "height": 30
+      }
+    },
+    "completedDeliveries": 0,
+    "createdAt": "2025-03-08T16:11:00.614Z"
+  }
+]

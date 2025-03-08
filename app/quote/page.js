@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Container, Row, Col, Form, Button, Card, Spinner, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Card, Spinner, Alert, Nav } from 'react-bootstrap';
 import { formatCurrency } from '../../lib/utils';
 import PriceBreakdownModal from '../../components/PriceBreakdownModal';
 import PriceBreakdownTooltip, { getPricingExplanations } from '../../components/PriceBreakdownTooltip';
@@ -24,7 +24,22 @@ export default function DetailedQuotePage() {
     parkingDistanceOrigin: 0,
     parkingDistanceDestination: 0,
     premiumPacking: false,
-    specialItems: []
+    specialItems: [],
+    // Parcel delivery specific fields
+    orderType: 'moving', // 'moving' or 'parcel'
+    pickupAddress: '',
+    deliveryAddress: '',
+    packageType: 'documents',
+    recipientName: '',
+    recipientPhone: '',
+    deliveryInstructions: '',
+    // Default values for backend calculations
+    parcelWeight: 1,
+    parcelDimensions: {
+      length: 30,
+      width: 20,
+      height: 15
+    }
   });
   
   const [loading, setLoading] = useState(false);
@@ -34,6 +49,15 @@ export default function DetailedQuotePage() {
   const [specialItemCategories, setSpecialItemCategories] = useState([]);
   const [showDetailedBreakdown, setShowDetailedBreakdown] = useState(false);
   const [showVisualBreakdown, setShowVisualBreakdown] = useState(false);
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'moving');
+  
+  // Update formData.orderType based on activeTab
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      orderType: activeTab
+    }));
+  }, [activeTab]);
   
   // Fetch pricing factors on component mount
   useEffect(() => {
@@ -171,24 +195,58 @@ export default function DetailedQuotePage() {
     }
   };
   
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setFormData(prev => ({
+      ...prev,
+      orderType: tab
+    }));
+  };
+  
   const handleDetailedEstimate = async (e) => {
     e.preventDefault();
-    
-    if (!formData.fromZip || !formData.toZip || !formData.moveSize) {
-      setError('Please fill in all required fields');
-      return;
-    }
-    
     setLoading(true);
     setError('');
     
     try {
+      // Prepare request data based on order type
+      const requestData = {
+        fromZip: formData.fromZip,
+        toZip: formData.toZip,
+        moveDate: formData.moveDate,
+        orderType: formData.orderType
+      };
+      
+      if (formData.orderType === 'moving') {
+        // Add moving-specific fields
+        requestData.moveSize = formData.moveSize;
+        requestData.floorLevelOrigin = formData.floorLevelOrigin;
+        requestData.floorLevelDestination = formData.floorLevelDestination;
+        requestData.hasElevatorOrigin = formData.hasElevatorOrigin;
+        requestData.hasElevatorDestination = formData.hasElevatorDestination;
+        requestData.parkingDistanceOrigin = formData.parkingDistanceOrigin;
+        requestData.parkingDistanceDestination = formData.parkingDistanceDestination;
+        requestData.premiumPacking = formData.premiumPacking;
+        requestData.specialItems = formData.specialItems;
+      } else {
+        // Add parcel-specific fields
+        requestData.pickupAddress = formData.pickupAddress;
+        requestData.deliveryAddress = formData.deliveryAddress;
+        requestData.packageType = formData.packageType;
+        requestData.recipientName = formData.recipientName;
+        requestData.recipientPhone = formData.recipientPhone;
+        requestData.deliveryInstructions = formData.deliveryInstructions;
+        // Add default values for backend calculations
+        requestData.parcelWeight = formData.parcelWeight;
+        requestData.parcelDimensions = formData.parcelDimensions;
+      }
+      
       const response = await fetch('/api/pricing', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(requestData)
       });
       
       const data = await response.json();
@@ -233,9 +291,19 @@ export default function DetailedQuotePage() {
     }
   };
   
+  const handleParcelDimensionChange = (dimension, value) => {
+    setFormData(prev => ({
+      ...prev,
+      parcelDimensions: {
+        ...prev.parcelDimensions,
+        [dimension]: parseInt(value) || 0
+      }
+    }));
+  };
+  
   return (
     <Container className="py-5">
-      <h1 className="mb-4">Detailed Moving Quote</h1>
+      <h1 className="mb-4">Detailed Quote</h1>
       
       {estimate && (
         <Card className="mb-4 shadow-sm">
@@ -384,9 +452,30 @@ export default function DetailedQuotePage() {
       
       <Card className="shadow-sm">
         <Card.Header>
-          <h4 className="mb-0">Enter Move Details</h4>
+          <h4 className="mb-0">Enter Details</h4>
         </Card.Header>
         <Card.Body>
+          <div className="mb-4">
+            <Nav variant="tabs">
+              <Nav.Item>
+                <Nav.Link 
+                  active={activeTab === 'moving'} 
+                  onClick={() => handleTabChange('moving')}
+                >
+                  Home Moving
+                </Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                <Nav.Link 
+                  active={activeTab === 'parcel'} 
+                  onClick={() => handleTabChange('parcel')}
+                >
+                  Parcel Delivery
+                </Nav.Link>
+              </Nav.Item>
+            </Nav>
+          </div>
+          
           <Form onSubmit={handleDetailedEstimate}>
             <Row>
               <Col md={4}>
@@ -415,28 +504,7 @@ export default function DetailedQuotePage() {
               </Col>
               <Col md={4}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Home Size*</Form.Label>
-                  <Form.Select
-                    name="moveSize"
-                    value={formData.moveSize}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    <option value="">Select home size</option>
-                    {availableSizes.map((size) => (
-                      <option key={size} value={size}>
-                        {size}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Move Date</Form.Label>
+                  <Form.Label>Delivery Date</Form.Label>
                   <Form.Control
                     type="date"
                     name="moveDate"
@@ -445,142 +513,217 @@ export default function DetailedQuotePage() {
                   />
                 </Form.Group>
               </Col>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Pickup Floor Level</Form.Label>
-                  <Form.Control
-                    type="number"
-                    name="floorLevelOrigin"
-                    value={formData.floorLevelOrigin}
-                    onChange={handleNumberInputChange}
-                    min="0"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Destination Floor Level</Form.Label>
-                  <Form.Control
-                    type="number"
-                    name="floorLevelDestination"
-                    value={formData.floorLevelDestination}
-                    onChange={handleNumberInputChange}
-                    min="0"
-                  />
-                </Form.Group>
-              </Col>
             </Row>
             
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Check
-                    type="checkbox"
-                    label="Elevator available at pickup"
-                    name="hasElevatorOrigin"
-                    checked={formData.hasElevatorOrigin}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Check
-                    type="checkbox"
-                    label="Elevator available at destination"
-                    name="hasElevatorDestination"
-                    checked={formData.hasElevatorDestination}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Parking Distance at Pickup (meters)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    name="parkingDistanceOrigin"
-                    value={formData.parkingDistanceOrigin}
-                    onChange={handleNumberInputChange}
-                    min="0"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Parking Distance at Destination (meters)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    name="parkingDistanceDestination"
-                    value={formData.parkingDistanceDestination}
-                    onChange={handleNumberInputChange}
-                    min="0"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Form.Group className="mb-3">
-              <Form.Check
-                type="checkbox"
-                label="Premium Packing Materials"
-                name="premiumPacking"
-                checked={formData.premiumPacking}
-                onChange={handleInputChange}
-              />
-            </Form.Group>
-            
-            <div className="mb-3">
-              <div className="d-flex justify-content-between align-items-center mb-2">
-                <h5 className="mb-0">Special Items</h5>
-                <Button 
-                  variant="outline-primary" 
-                  size="sm" 
-                  onClick={handleAddSpecialItem}
-                >
-                  Add Item
-                </Button>
-              </div>
-              
-              {formData.specialItems.map((item, index) => (
-                <Row key={index} className="mb-2 align-items-end">
-                  <Col md={6}>
-                    <Form.Select
-                      value={item.category}
-                      onChange={(e) => handleSpecialItemChange(index, 'category', e.target.value)}
-                    >
-                      {specialItemCategories.map((category) => (
-                        <option key={category} value={category}>
-                          {category.charAt(0).toUpperCase() + category.slice(1)}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </Col>
+            {activeTab === 'moving' ? (
+              <>
+                <Row>
                   <Col md={4}>
-                    <Form.Control
-                      type="number"
-                      placeholder="Quantity"
-                      value={item.quantity}
-                      onChange={(e) => handleSpecialItemChange(index, 'quantity', e.target.value)}
-                      min="1"
-                    />
-                  </Col>
-                  <Col md={2}>
-                    <Button 
-                      variant="outline-danger" 
-                      size="sm" 
-                      onClick={() => handleRemoveSpecialItem(index)}
-                      className="w-100"
-                    >
-                      Remove
-                    </Button>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Home Size*</Form.Label>
+                      <Form.Select
+                        name="moveSize"
+                        value={formData.moveSize}
+                        onChange={handleInputChange}
+                        required={activeTab === 'moving'}
+                      >
+                        <option value="">Select home size</option>
+                        {availableSizes.map((size) => (
+                          <option key={size} value={size}>
+                            {size}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
                   </Col>
                 </Row>
-              ))}
-            </div>
+                
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Pickup Floor Level</Form.Label>
+                      <Form.Control
+                        type="number"
+                        name="floorLevelOrigin"
+                        value={formData.floorLevelOrigin}
+                        onChange={handleNumberInputChange}
+                        min="0"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Destination Floor Level</Form.Label>
+                      <Form.Control
+                        type="number"
+                        name="floorLevelDestination"
+                        value={formData.floorLevelDestination}
+                        onChange={handleNumberInputChange}
+                        min="0"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Check
+                        type="checkbox"
+                        label="Elevator available at pickup"
+                        name="hasElevatorOrigin"
+                        checked={formData.hasElevatorOrigin}
+                        onChange={handleInputChange}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Check
+                        type="checkbox"
+                        label="Elevator available at destination"
+                        name="hasElevatorDestination"
+                        checked={formData.hasElevatorDestination}
+                        onChange={handleInputChange}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Parking Distance at Pickup (meters)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        name="parkingDistanceOrigin"
+                        value={formData.parkingDistanceOrigin}
+                        onChange={handleNumberInputChange}
+                        min="0"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Parking Distance at Destination (meters)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        name="parkingDistanceDestination"
+                        value={formData.parkingDistanceDestination}
+                        onChange={handleNumberInputChange}
+                        min="0"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                
+                <Form.Group className="mb-3">
+                  <Form.Check
+                    type="checkbox"
+                    label="Premium Packing Materials"
+                    name="premiumPacking"
+                    checked={formData.premiumPacking}
+                    onChange={handleInputChange}
+                  />
+                </Form.Group>
+              </>
+            ) : (
+              <>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Pickup Address</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={2}
+                        name="pickupAddress"
+                        value={formData.pickupAddress}
+                        onChange={handleInputChange}
+                        placeholder="Enter complete pickup address"
+                        disabled={loading}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Delivery Address</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={2}
+                        name="deliveryAddress"
+                        value={formData.deliveryAddress}
+                        onChange={handleInputChange}
+                        placeholder="Enter complete delivery address"
+                        disabled={loading}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Package Type</Form.Label>
+                      <Form.Select
+                        name="packageType"
+                        value={formData.packageType}
+                        onChange={handleInputChange}
+                        disabled={loading}
+                      >
+                        <option value="documents">Documents</option>
+                        <option value="electronics">Electronics</option>
+                        <option value="clothing">Clothing</option>
+                        <option value="food">Food</option>
+                        <option value="medicine">Medicine</option>
+                        <option value="other">Other</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
+                
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Recipient Name*</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="recipientName"
+                        value={formData.recipientName}
+                        onChange={handleInputChange}
+                        required={activeTab === 'parcel'}
+                        disabled={loading}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Recipient Phone*</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="recipientPhone"
+                        value={formData.recipientPhone}
+                        onChange={handleInputChange}
+                        required={activeTab === 'parcel'}
+                        disabled={loading}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                
+                <Form.Group className="mb-3">
+                  <Form.Label>Delivery Instructions</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    name="deliveryInstructions"
+                    value={formData.deliveryInstructions}
+                    onChange={handleInputChange}
+                    placeholder="Any special instructions for delivery"
+                    disabled={loading}
+                  />
+                </Form.Group>
+              </>
+            )}
             
             {error && (
               <Alert variant="danger" className="mb-3">

@@ -87,8 +87,8 @@ export default function PriceEstimator({ onEstimateGenerated }) {
   };
 
   const handleGetDetailedEstimate = () => {
-    // Navigate to detailed estimate page or open modal
-    window.location.href = `/quote?from=${fromZip}&to=${toZip}&size=${moveSize}`;
+    // Navigate to detailed estimate page with moving tab
+    window.location.href = `/quote?from=${fromZip}&to=${toZip}&size=${moveSize}&tab=moving`;
   };
 
   return (

@@ -17,6 +17,7 @@
     "@sendgrid/mail": "^8.1.4",
     "bcryptjs": "^3.0.2",
     "bootstrap": "^5.3.3",
+    "jsonwebtoken": "^9.0.2",
     "next": "^14.1.0",
     "next-auth": "^4.24.11",
     "node-fetch": "^3.3.2",

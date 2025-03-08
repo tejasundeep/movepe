@@ -96,6 +96,11 @@ export default function MoveForm() {
     }))
   }
 
+  const handleGetQuote = () => {
+    // Navigate to detailed quote page with moving tab
+    window.location.href = `/quote?from=${formData.pickupPincode}&to=${formData.destinationPincode}&size=${formData.moveSize}&tab=moving`;
+  };
+
   // Calculate minimum date (today)
   const minDate = new Date().toISOString().split('T')[0]
 
@@ -184,6 +189,15 @@ export default function MoveForm() {
           disabled={loading}
         />
       </Form.Group>
+
+      <Button 
+        variant="outline-primary" 
+        className="w-100 mb-3"
+        onClick={handleGetQuote}
+        disabled={!formData.pickupPincode || !formData.destinationPincode || !formData.moveSize}
+      >
+        Get Detailed Quote
+      </Button>
 
       <Button 
         variant="primary" 

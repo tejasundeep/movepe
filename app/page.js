@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import MoveForm from '../components/MoveForm'
+import ParcelDeliveryForm from '../components/ParcelDeliveryForm'
 import PriceEstimator from './components/PriceEstimator'
 import { Container, Row, Col, Spinner, Card, Tab, Tabs } from 'react-bootstrap'
 
@@ -67,7 +68,10 @@ export default function Home() {
                   />
                 </Tab>
                 <Tab eventKey="book" title="Book a Move">
-          <MoveForm />
+                  <MoveForm />
+                </Tab>
+                <Tab eventKey="parcel" title="Parcel Delivery">
+                  <ParcelDeliveryForm />
                 </Tab>
               </Tabs>
             </Card.Body>

@@ -3,15 +3,19 @@
 import { useState, useEffect, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Container, Row, Col, Form, Button, Alert } from 'react-bootstrap'
+import { Container, Row, Col, Form, Button, Alert, Card } from 'react-bootstrap'
 import { FcGoogle } from 'react-icons/fc'
 import Link from 'next/link'
 
 function SignInContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const callbackUrl = searchParams.get('callbackUrl') || '/'
+  const errorParam = searchParams.get('error')
+  const registered = searchParams.get('registered')
+  const message = searchParams.get('message')
+  const [error, setError] = useState(errorParam || '')
+  const [success, setSuccess] = useState(registered ? (message || 'Registration successful! Please sign in to continue.') : '')
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
@@ -82,7 +86,7 @@ function SignInContent() {
         <Col md={6}>
           <div className="text-center mb-4">
             <h2>Sign In</h2>
-            <p>Welcome back! Please sign in to continue.</p>
+            <p>Welcome back to Move Management System</p>
           </div>
 
           {error && <Alert variant="danger">{error}</Alert>}
@@ -145,12 +149,18 @@ function SignInContent() {
               Sign in with Google
             </Button>
 
-            <div className="text-center">
+            <div className="text-center mt-3">
               <p>
                 Don't have an account?{' '}
-                <Link href="/auth/register">Register as User</Link>
-                {' or '}
+                <Link href="/auth/register">Register</Link>
+              </p>
+              <p>
+                Want to register as a vendor?{' '}
                 <Link href="/auth/register/vendor">Register as Vendor</Link>
+              </p>
+              <p>
+                Want to register as a rider?{' '}
+                <Link href="/auth/register/rider">Register as Rider</Link>
               </p>
             </div>
           </Form>

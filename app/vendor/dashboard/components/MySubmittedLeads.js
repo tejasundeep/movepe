@@ -341,6 +341,9 @@ export default function MySubmittedLeads() {
                         <strong>Date:</strong> {formatDate(selectedLead.payment?.paidAt)}<br />
                         <strong>Payment ID:</strong> {selectedLead.payment?.razorpayPaymentId || 'N/A'}<br />
                         <strong>Commission Rate:</strong> {selectedLead.payment?.commissionRate || 20}%
+                        {selectedLead.payment?.appliedCommissionDiscount && (
+                          <span className="text-success ms-2">(Discounted)</span>
+                        )}
                       </p>
                     </Col>
                     <Col md={6}>

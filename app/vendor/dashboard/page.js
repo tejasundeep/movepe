@@ -1,85 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Container, Row, Col, Card, Badge, Form, Button, Alert, Spinner, Tabs, Tab } from 'react-bootstrap'
+import { Container, Row, Col, Card, Badge, Button, Alert, Spinner, Tabs, Tab } from 'react-bootstrap'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import RequestCard from './components/RequestCard'
-import CrossLeadForm from './components/CrossLeadForm'
-import AffiliateStats from './components/AffiliateStats'
-import CrossLeadsList from './components/CrossLeadsList'
-import MySubmittedLeads from './components/MySubmittedLeads'
 import { toast } from 'react-hot-toast'
-
-// Quote Form Component
-function QuoteForm({ onSubmit }) {
-  const [amount, setAmount] = useState('')
-  const [error, setError] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    setError('')
-    
-    // Validate amount
-    const numAmount = Number(amount)
-    if (!amount || isNaN(numAmount)) {
-      setError('Please enter a valid amount')
-      return
-    }
-    
-    if (numAmount < 1000) {
-      setError('Minimum quote amount is ₹1,000')
-      return
-    }
-    
-    setSubmitting(true)
-    
-    try {
-      onSubmit(numAmount)
-        .catch(err => {
-          setError(err.message || 'Failed to submit quote. Please try again.')
-          setSubmitting(false)
-        })
-    } catch (err) {
-      setError('Failed to submit quote. Please try again.')
-      setSubmitting(false)
-    }
-  }
-  
-  return (
-    <Form onSubmit={handleSubmit}>
-      <Form.Group className="mb-3">
-        <Form.Label>Quote Amount (₹)</Form.Label>
-        <Form.Control
-          type="number"
-          value={amount}
-          onChange={(e) => {
-            setAmount(e.target.value)
-            setError('')
-          }}
-          required
-          min="1000"
-          placeholder="Enter your quote amount"
-          disabled={submitting}
-        />
-        <Form.Text className="text-muted">
-          Minimum quote amount is ₹1,000
-        </Form.Text>
-        {error && <div className="text-danger mt-1">{error}</div>}
-      </Form.Group>
-      <Button 
-        type="submit" 
-        variant="primary" 
-        className="w-100"
-        disabled={submitting}
-      >
-        {submitting ? 'Submitting...' : 'Submit Quote'}
-      </Button>
-    </Form>
-  )
-}
+import { FaCheck, FaTimes, FaMoneyBillWave, FaClipboardList, FaTruck, FaUserClock, FaExchangeAlt } from 'react-icons/fa'
+import SimpleRequestCard from './components/SimpleRequestCard'
 
 // Helper function to safely format dates
 function formatDate(dateString) {
@@ -101,6 +29,7 @@ export default function VendorDashboard() {
   const [error, setError] = useState('')
   const [availability, setAvailability] = useState('available')
   const router = useRouter()
+  const [activeTab, setActiveTab] = useState('new')
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -137,6 +66,10 @@ export default function VendorDashboard() {
 
   const handleSubmitQuote = async (orderId, amount) => {
     try {
+      if (!orderId || !amount) {
+        throw new Error('Missing order ID or amount')
+      }
+      
       const response = await fetch(`/api/vendor/quotes/${orderId}`, {
         method: 'POST',
         headers: {
@@ -152,6 +85,9 @@ export default function VendorDashboard() {
 
       const responseData = await response.json();
       
+      // Show success message
+      toast.success('Your price has been sent to the customer!')
+      
       // Refresh requests after submitting quote
       fetchRequests()
       
@@ -164,9 +100,14 @@ export default function VendorDashboard() {
     }
   }
 
-  const handleAvailabilityChange = async (e) => {
-    const newAvailability = e.target.value
-    setAvailability(newAvailability)
+  const handleAvailabilityChange = async (newStatus) => {
+    if (newStatus !== 'available' && newStatus !== 'unavailable') {
+      console.error('Invalid availability status:', newStatus)
+      return
+    }
+    
+    const previousStatus = availability
+    setAvailability(newStatus)
     
     try {
       const response = await fetch('/api/vendor/availability', {
@@ -174,16 +115,21 @@ export default function VendorDashboard() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ availability: newAvailability })
+        body: JSON.stringify({ availability: newStatus })
       })
 
       if (!response.ok) {
         throw new Error('Failed to update availability')
       }
+      
+      toast.success(newStatus === 'available' 
+        ? 'You are now available for new jobs' 
+        : 'You are now marked as unavailable for new jobs')
     } catch (error) {
       console.error('Error updating availability:', error)
       // Revert availability if update fails
-      setAvailability(availability)
+      setAvailability(previousStatus)
+      toast.error('Could not update your status')
     }
   }
 
@@ -208,164 +154,375 @@ export default function VendorDashboard() {
   }
 
   // Filter requests by category
-  const newRequests = requests.filter(r => !r.submittedQuote && !r.wonOpportunity && !r.lostOpportunity)
-  const submittedQuotes = requests.filter(r => r.submittedQuote && !r.wonOpportunity && !r.lostOpportunity)
-  const wonOpportunities = requests.filter(r => r.wonOpportunity)
-  const lostOpportunities = requests.filter(r => r.lostOpportunity)
+  const newRequests = requests.filter(r => !r.submittedQuote && !r.wonOpportunity && !r.lostOpportunity) || []
+  const submittedQuotes = requests.filter(r => r.submittedQuote && !r.wonOpportunity && !r.lostOpportunity) || []
+  const wonOpportunities = requests.filter(r => r.wonOpportunity) || []
+  const lostOpportunities = requests.filter(r => r.lostOpportunity) || []
 
   return (
     <Container className="py-4">
+      {/* Simple Status Bar */}
       <Row className="mb-4">
         <Col>
-          <div className="d-flex justify-content-between align-items-center">
-            <h2 className="mb-0">Vendor Dashboard</h2>
-            <div className="d-flex align-items-center">
-              <Form.Select 
-                value={availability}
-                onChange={handleAvailabilityChange}
-                style={{ width: 'auto' }}
-                className="me-2"
-              >
-                <option value="available">Available for Orders</option>
-                <option value="unavailable">Not Available</option>
-              </Form.Select>
-              <Button 
-                variant="outline-primary" 
-                size="sm" 
-                onClick={fetchRequests}
-              >
-                Refresh
-              </Button>
+          <Card className="shadow-sm">
+            <Card.Body>
+              <h3 className="text-center mb-4">Your Status</h3>
+              <div className="d-flex justify-content-center mb-3">
+                <div 
+                  className={`status-indicator ${availability === 'available' ? 'active' : ''}`} 
+                  onClick={() => handleAvailabilityChange('available')}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Set status to available"
+                >
+                  <div className="icon-container">
+                    <FaCheck size={24} color={availability === 'available' ? '#28a745' : '#6c757d'} />
+                  </div>
+                  <div className="text-center mt-2">Available</div>
+                </div>
+                <div 
+                  className={`status-indicator ${availability === 'unavailable' ? 'active' : ''}`}
+                  onClick={() => handleAvailabilityChange('unavailable')}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Set status to unavailable"
+                >
+                  <div className="icon-container">
+                    <FaTimes size={24} color={availability === 'unavailable' ? '#dc3545' : '#6c757d'} />
+                  </div>
+                  <div className="text-center mt-2">Not Available</div>
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="mb-0">
+                  {availability === 'available' 
+                    ? 'You will receive new job requests' 
+                    : 'You will not receive new job requests'}
+                </p>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Dashboard Stats */}
+      <Row className="mb-4">
+        <Col xs={6} md={3} className="mb-3">
+          <Card className="text-center h-100 shadow-sm">
+            <Card.Body>
+              <div className="icon-container mb-2">
+                <FaClipboardList size={32} color="#007bff" />
+              </div>
+              <h4>{newRequests.length}</h4>
+              <div>New Requests</div>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col xs={6} md={3} className="mb-3">
+          <Card className="text-center h-100 shadow-sm">
+            <Card.Body>
+              <div className="icon-container mb-2">
+                <FaMoneyBillWave size={32} color="#ffc107" />
+              </div>
+              <h4>{submittedQuotes.length}</h4>
+              <div>Waiting</div>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col xs={6} md={3} className="mb-3">
+          <Card className="text-center h-100 shadow-sm">
+            <Card.Body>
+              <div className="icon-container mb-2">
+                <FaTruck size={32} color="#28a745" />
+              </div>
+              <h4>{wonOpportunities.length}</h4>
+              <div>Confirmed Jobs</div>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col xs={6} md={3} className="mb-3">
+          <Card className="text-center h-100 shadow-sm">
+            <Card.Body>
+              <div className="icon-container mb-2">
+                <FaUserClock size={32} color="#6c757d" />
+              </div>
+              <h4>{lostOpportunities.length}</h4>
+              <div>Not Selected</div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Affiliate Link */}
+      <Row className="mb-4">
+        <Col>
+          <Card className="shadow-sm">
+            <Card.Body className="d-flex align-items-center justify-content-between">
+              <div className="d-flex align-items-center">
+                <div className="icon-container me-3">
+                  <FaExchangeAlt size={24} color="#007bff" />
+                </div>
+                <div>
+                  <h5 className="mb-1">Affiliate Program</h5>
+                  <p className="mb-0 text-muted">Earn commissions by referring customers to other vendors</p>
+                </div>
+              </div>
+              <Link href="/vendor/affiliate" passHref legacyBehavior>
+                <Button variant="primary">Manage Affiliate</Button>
+              </Link>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Simple Tab Navigation */}
+      <Row className="mb-3">
+        <Col>
+          <div className="simple-tabs">
+            <div 
+              className={`simple-tab ${activeTab === 'new' ? 'active' : ''}`}
+              onClick={() => setActiveTab('new')}
+              role="button"
+              tabIndex={0}
+              aria-label="Show new requests"
+            >
+              <FaClipboardList className="me-2" />
+              New Requests ({newRequests.length})
+            </div>
+            <div 
+              className={`simple-tab ${activeTab === 'waiting' ? 'active' : ''}`}
+              onClick={() => setActiveTab('waiting')}
+              role="button"
+              tabIndex={0}
+              aria-label="Show waiting quotes"
+            >
+              <FaMoneyBillWave className="me-2" />
+              Waiting ({submittedQuotes.length})
+            </div>
+            <div 
+              className={`simple-tab ${activeTab === 'confirmed' ? 'active' : ''}`}
+              onClick={() => setActiveTab('confirmed')}
+              role="button"
+              tabIndex={0}
+              aria-label="Show confirmed jobs"
+            >
+              <FaTruck className="me-2" />
+              Confirmed Jobs ({wonOpportunities.length})
+            </div>
+            <div 
+              className={`simple-tab ${activeTab === 'not-selected' ? 'active' : ''}`}
+              onClick={() => setActiveTab('not-selected')}
+              role="button"
+              tabIndex={0}
+              aria-label="Show not selected requests"
+            >
+              <FaUserClock className="me-2" />
+              Not Selected ({lostOpportunities.length})
             </div>
           </div>
         </Col>
       </Row>
 
-      <Row className="mb-4">
-        <Col>
-          <AffiliateStats />
-        </Col>
-      </Row>
+      {/* Error Message */}
+      {error && (
+        <Row className="mb-4">
+          <Col>
+            <Alert variant="danger">{error}</Alert>
+          </Col>
+        </Row>
+      )}
 
-      <Row className="mb-4">
-        <Col>
-          <CrossLeadForm onSubmitSuccess={fetchRequests} />
-        </Col>
-      </Row>
+      {/* Loading Indicator */}
+      {loading && (
+        <Row className="mb-4">
+          <Col className="text-center">
+            <Spinner animation="border" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </Spinner>
+          </Col>
+        </Row>
+      )}
 
-      <Row className="mb-4">
-        <Col>
-          <Card>
-            <Card.Header>
-              <h5 className="mb-0">Cross Leads</h5>
-            </Card.Header>
-            <Card.Body>
-              <Tabs 
-                defaultActiveKey="submitted"
-                className="mb-3"
-                fill
-              >
-                <Tab eventKey="submitted" title="Submitted Leads">
-                  <CrossLeadsList />
-                </Tab>
-                <Tab eventKey="manage" title="My Cross Leads">
-                  <MySubmittedLeads />
-                </Tab>
-              </Tabs>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
+      {/* Tab Content */}
       <Row>
         <Col>
-          <Card>
-            <Card.Header>
-              <h5 className="mb-0">Order Requests</h5>
-            </Card.Header>
-            <Card.Body className="p-0">
-              {error ? (
-                <Alert variant="danger" className="m-3">
-                  {error}
-                </Alert>
-              ) : loading ? (
-                <div className="text-center p-4">
-                  <Spinner animation="border" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </Spinner>
-                </div>
-              ) : requests.length === 0 ? (
-                <Alert variant="info" className="m-3">
-                  No order requests found. Make sure your service areas are set up correctly.
-                </Alert>
+          {activeTab === 'new' && (
+            <>
+              {newRequests.length === 0 ? (
+                <Card className="text-center p-4 shadow-sm">
+                  <Card.Body>
+                    <h4>No New Requests</h4>
+                    <p>You don't have any new job requests at the moment.</p>
+                  </Card.Body>
+                </Card>
               ) : (
-                <Tabs defaultActiveKey="new" className="mb-3">
-                  <Tab eventKey="new" title={`New Requests (${newRequests.length})`}>
-                    <div className="p-3">
-                      {newRequests.length === 0 ? (
-                        <Alert variant="info">No new requests.</Alert>
-                      ) : (
-                        newRequests.map(request => (
-                          <RequestCard
-                            key={request.orderId}
-                            request={request}
-                            onSubmitQuote={handleSubmitQuote}
-                          />
-                        ))
-                      )}
-                    </div>
-                  </Tab>
-                  <Tab eventKey="submitted" title={`Submitted Quotes (${submittedQuotes.length})`}>
-                    <div className="p-3">
-                      {submittedQuotes.length === 0 ? (
-                        <Alert variant="info">No submitted quotes.</Alert>
-                      ) : (
-                        submittedQuotes.map(request => (
-                          <RequestCard
-                            key={request.orderId}
-                            request={request}
-                            onSubmitQuote={handleSubmitQuote}
-                          />
-                        ))
-                      )}
-                    </div>
-                  </Tab>
-                  <Tab eventKey="won" title={`Won Opportunities (${wonOpportunities.length})`}>
-                    <div className="p-3">
-                      {wonOpportunities.length === 0 ? (
-                        <Alert variant="info">No won opportunities.</Alert>
-                      ) : (
-                        wonOpportunities.map(request => (
-                          <RequestCard
-                            key={request.orderId}
-                            request={request}
-                            onSubmitQuote={handleSubmitQuote}
-                          />
-                        ))
-                      )}
-                    </div>
-                  </Tab>
-                  <Tab eventKey="lost" title={`Lost Opportunities (${lostOpportunities.length})`}>
-                    <div className="p-3">
-                      {lostOpportunities.length === 0 ? (
-                        <Alert variant="info">No lost opportunities.</Alert>
-                      ) : (
-                        lostOpportunities.map(request => (
-                          <RequestCard
-                            key={request.orderId}
-                            request={request}
-                            onSubmitQuote={handleSubmitQuote}
-                          />
-                        ))
-                      )}
-                    </div>
-                  </Tab>
-                </Tabs>
+                newRequests.map(request => (
+                  <SimpleRequestCard 
+                    key={request.orderId} 
+                    request={request} 
+                    onSubmitQuote={handleSubmitQuote} 
+                  />
+                ))
               )}
-            </Card.Body>
-          </Card>
+            </>
+          )}
+
+          {activeTab === 'waiting' && (
+            <>
+              {submittedQuotes.length === 0 ? (
+                <Card className="text-center p-4 shadow-sm">
+                  <Card.Body>
+                    <h4>No Waiting Quotes</h4>
+                    <p>You don't have any quotes waiting for customer response.</p>
+                  </Card.Body>
+                </Card>
+              ) : (
+                submittedQuotes.map(request => (
+                  <SimpleRequestCard 
+                    key={request.orderId} 
+                    request={request} 
+                  />
+                ))
+              )}
+            </>
+          )}
+
+          {activeTab === 'confirmed' && (
+            <>
+              {wonOpportunities.length === 0 ? (
+                <Card className="text-center p-4 shadow-sm">
+                  <Card.Body>
+                    <h4>No Confirmed Jobs</h4>
+                    <p>You don't have any confirmed jobs at the moment.</p>
+                  </Card.Body>
+                </Card>
+              ) : (
+                wonOpportunities.map(request => (
+                  <SimpleRequestCard 
+                    key={request.orderId} 
+                    request={request} 
+                  />
+                ))
+              )}
+            </>
+          )}
+
+          {activeTab === 'not-selected' && (
+            <>
+              {lostOpportunities.length === 0 ? (
+                <Card className="text-center p-4 shadow-sm">
+                  <Card.Body>
+                    <h4>No Past Requests</h4>
+                    <p>You don't have any past requests where you weren't selected.</p>
+                  </Card.Body>
+                </Card>
+              ) : (
+                lostOpportunities.map(request => (
+                  <SimpleRequestCard 
+                    key={request.orderId} 
+                    request={request} 
+                  />
+                ))
+              )}
+            </>
+          )}
         </Col>
       </Row>
+
+      {/* Refresh Button */}
+      <Row className="mt-4">
+        <Col className="text-center">
+          <Button 
+            variant="primary" 
+            size="lg" 
+            onClick={fetchRequests}
+            className="px-4 py-2"
+            disabled={loading}
+            aria-label="Refresh job list"
+          >
+            {loading ? (
+              <>
+                <Spinner
+                  as="span"
+                  animation="border"
+                  size="sm"
+                  role="status"
+                  aria-hidden="true"
+                  className="me-2"
+                />
+                Loading...
+              </>
+            ) : (
+              <>Refresh Jobs</>
+            )}
+          </Button>
+        </Col>
+      </Row>
+
+      <style jsx global>{`
+        .status-indicator {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          margin: 0 20px;
+          cursor: pointer;
+          padding: 10px;
+          border-radius: 10px;
+          transition: all 0.3s ease;
+        }
+        
+        .status-indicator.active {
+          background-color: #f8f9fa;
+          box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .icon-container {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
+          background-color: #f8f9fa;
+          margin-bottom: 8px;
+        }
+        
+        .simple-tabs {
+          display: flex;
+          overflow-x: auto;
+          background-color: #f8f9fa;
+          border-radius: 10px;
+          padding: 5px;
+        }
+        
+        .simple-tab {
+          padding: 12px 16px;
+          cursor: pointer;
+          white-space: nowrap;
+          display: flex;
+          align-items: center;
+          border-radius: 8px;
+          margin: 0 5px;
+          transition: all 0.3s ease;
+        }
+        
+        .simple-tab.active {
+          background-color: #007bff;
+          color: white;
+        }
+        
+        @media (max-width: 768px) {
+          .simple-tabs {
+            flex-wrap: wrap;
+          }
+          
+          .simple-tab {
+            flex: 1 1 40%;
+            margin: 5px;
+            justify-content: center;
+          }
+        }
+      `}</style>
     </Container>
   )
 } 

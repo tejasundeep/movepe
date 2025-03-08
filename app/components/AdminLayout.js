@@ -7,7 +7,8 @@ import { Container, Row, Col, Nav, Spinner, Button } from 'react-bootstrap'
 import Link from 'next/link'
 import { 
   FaUsers, FaStore, FaBoxes, FaChartBar, FaCog, FaTachometerAlt, 
-  FaSignOutAlt, FaBell, FaFileExport, FaHistory, FaServer, FaThermometerHalf
+  FaSignOutAlt, FaBell, FaFileExport, FaHistory, FaServer, FaThermometerHalf,
+  FaMotorcycle
 } from 'react-icons/fa'
 import { signOut } from 'next-auth/react'
 
@@ -148,6 +149,15 @@ export default function AdminLayout({ children }) {
               >
                 <FaStore className="me-3" />
                 {!collapsed && <span>Vendor Management</span>}
+              </Link>
+            </Nav.Item>
+            <Nav.Item>
+              <Link 
+                href="/admin/riders" 
+                className={`nav-link text-white d-flex align-items-center py-3 ${isActive('/admin/riders') ? 'active bg-primary rounded' : ''}`}
+              >
+                <FaMotorcycle className="me-3" />
+                {!collapsed && <span>Rider Management</span>}
               </Link>
             </Nav.Item>
             <Nav.Item>
