@@ -1,0 +1,79 @@
+[
+  {
+    "id": "template_order_created_email",
+    "name": "Order Created Email",
+    "type": "email",
+    "subject": "Your Move Order #{orderId} has been created",
+    "content": "Dear {userName},\n\nThank you for creating a move order with us. Your order has been successfully created and is being processed.\n\nOrder Details:\n- Order ID: {orderId}\n- From: {pickupLocation}\n- To: {destinationLocation}\n- Move Size: {moveSize}\n- Preferred Date: {moveDate}\n\nYou will receive quotes from our verified vendors soon. You can track your order status by logging into your account.\n\nBest regards,\nThe Move Management Team",
+    "description": "Email sent to users when they create a new move order",
+    "variables": [
+      "userName",
+      "orderId",
+      "pickupLocation",
+      "destinationLocation",
+      "moveSize",
+      "moveDate"
+    ],
+    "createdAt": "2023-01-01T00:00:00.000Z",
+    "updatedAt": "2023-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "template_quote_requested_vendor_email",
+    "name": "Quote Requested Vendor Email",
+    "type": "email",
+    "subject": "New Quote Request for Order #{orderId}",
+    "content": "Dear {vendorName},\n\nYou have received a new quote request for a move order.\n\nOrder Details:\n- Order ID: {orderId}\n- From: {pickupLocation}\n- To: {destinationLocation}\n- Move Size: {moveSize}\n- Preferred Date: {moveDate}\n\nPlease log in to your vendor dashboard to submit your quote.\n\nBest regards,\nThe Move Management Team",
+    "description": "Email sent to vendors when a new quote is requested",
+    "variables": [
+      "vendorName",
+      "orderId",
+      "pickupLocation",
+      "destinationLocation",
+      "moveSize",
+      "moveDate"
+    ],
+    "createdAt": "2023-01-01T00:00:00.000Z",
+    "updatedAt": "2023-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "template_quote_accepted_vendor_whatsapp",
+    "name": "Quote Accepted Vendor WhatsApp",
+    "type": "whatsapp",
+    "content": "Hello {vendorName}, your quote for Order #{orderId} has been accepted by the customer. Please log in to your vendor dashboard for more details and to coordinate the move.",
+    "description": "WhatsApp message sent to vendors when their quote is accepted",
+    "variables": [
+      "vendorName",
+      "orderId"
+    ],
+    "createdAt": "2023-01-01T00:00:00.000Z",
+    "updatedAt": "2023-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "template_payment_received_user_sms",
+    "name": "Payment Received User SMS",
+    "type": "sms",
+    "content": "Thank you for your payment of Rs.{amount} for Order #{orderId}. Your move is now confirmed for {moveDate}.",
+    "description": "SMS sent to users when their payment is received",
+    "variables": [
+      "amount",
+      "orderId",
+      "moveDate"
+    ],
+    "createdAt": "2023-01-01T00:00:00.000Z",
+    "updatedAt": "2023-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "template_order_completed_user_email",
+    "name": "Order Completed User Email",
+    "type": "email",
+    "subject": "Your Move Order #{orderId} has been completed",
+    "content": "Dear {userName},\n\nYour move order #{orderId} has been successfully completed. Thank you for choosing our service.\n\nWe would appreciate if you could take a moment to rate your experience and provide feedback about the vendor.\n\nBest regards,\nThe Move Management Team",
+    "description": "Email sent to users when their order is marked as completed",
+    "variables": [
+      "userName",
+      "orderId"
+    ],
+    "createdAt": "2023-01-01T00:00:00.000Z",
+    "updatedAt": "2023-01-01T00:00:00.000Z"
+  }
+]

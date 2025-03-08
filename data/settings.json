@@ -1,0 +1,26 @@
+{
+  "general": {
+    "siteName": "Move Management System",
+    "contactEmail": "support@movepe.com",
+    "supportPhone": "+91 9999999999",
+    "defaultCurrency": "INR"
+  },
+  "notification": {
+    "enableEmailNotifications": true,
+    "enableSmsNotifications": true,
+    "enableWhatsAppNotifications": true,
+    "adminNotificationEmail": "admin@movepe.com"
+  },
+  "payment": {
+    "razorpayKeyId": "your-razorpay-key-id",
+    "razorpayKeySecret": "your-razorpay-key-secret",
+    "enableTestMode": true,
+    "defaultCommissionRate": 10
+  },
+  "api": {
+    "googleMapsApiKey": "",
+    "twilioAccountSid": "your-twilio-account-sid",
+    "twilioAuthToken": "your-twilio-auth-token",
+    "sendgridApiKey": "your-sendgrid-api-key"
+  }
+}

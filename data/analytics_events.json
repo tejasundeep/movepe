@@ -1,0 +1,64 @@
+[
+  {
+    "eventType": "notification_sent",
+    "eventData": {
+      "recipientType": "user",
+      "userEmail": "test@example.com",
+      "notificationType": "order_status_update",
+      "channel": "email",
+      "orderId": "ORD12345",
+      "newStatus": "In Progress"
+    },
+    "timestamp": "2025-03-01T23:36:50.857Z"
+  },
+  {
+    "eventType": "notification_sent",
+    "eventData": {
+      "recipientType": "vendor",
+      "vendorId": "V12345",
+      "vendorEmail": "vendor@example.com",
+      "notificationType": "quote_request",
+      "channel": "email",
+      "orderId": "ORD12345"
+    },
+    "timestamp": "2025-03-01T23:36:50.858Z"
+  },
+  {
+    "eventType": "notification_sent",
+    "eventData": {
+      "recipientType": "user",
+      "userEmail": "test@example.com",
+      "notificationType": "payment_received",
+      "channel": "sms",
+      "orderId": "ORD12345",
+      "paymentAmount": 5000
+    },
+    "timestamp": "2025-03-01T23:36:50.858Z"
+  },
+  {
+    "eventType": "notification_sent",
+    "eventData": {
+      "recipientType": "vendor",
+      "vendorId": "V12345",
+      "vendorEmail": "vendor@example.com",
+      "notificationType": "payment_received",
+      "channel": "whatsapp",
+      "orderId": "ORD12345",
+      "paymentAmount": 5000
+    },
+    "timestamp": "2025-03-01T23:36:50.858Z"
+  },
+  {
+    "eventType": "notification_sent",
+    "eventData": {
+      "recipientType": "user",
+      "userEmail": "test@example.com",
+      "notificationType": "inventory_condition_update",
+      "channel": "in_app",
+      "orderId": "ORD12345",
+      "inventoryId": "INV12345",
+      "itemName": "Sofa"
+    },
+    "timestamp": "2025-03-01T23:36:50.858Z"
+  }
+]

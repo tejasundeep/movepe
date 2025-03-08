@@ -1,0 +1,31 @@
+{
+  "name": "move-management-system",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "node --no-deprecation --no-warnings node_modules/next/dist/bin/next build",
+    "start": "next start",
+    "lint": "next lint",
+    "init-data": "node scripts/initialize-data.js",
+    "notification-report": "node scripts/notification-analytics-report.js",
+    "create-test-notifications": "node scripts/create-test-notification.js",
+    "test-pricing": "node scripts/test-pricing-service.js"
+  },
+  "dependencies": {
+    "@sendgrid/mail": "^8.1.4",
+    "bcryptjs": "^3.0.2",
+    "bootstrap": "^5.3.3",
+    "next": "^14.1.0",
+    "next-auth": "^4.24.11",
+    "node-fetch": "^3.3.2",
+    "razorpay": "^2.9.5",
+    "react": "^18.3.1",
+    "react-bootstrap": "^2.10.9",
+    "react-dom": "^18.3.1",
+    "react-hot-toast": "^2.5.2",
+    "react-icons": "^5.5.0",
+    "twilio": "^4.23.0",
+    "uuid": "^11.1.0"
+  }
+}

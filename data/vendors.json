@@ -1,0 +1,115 @@
+[
+  {
+    "vendorId": "v1",
+    "name": "Express Movers",
+    "email": "contact@expressmovers.com",
+    "serviceAreas": [
+      "110001",
+      "110002",
+      "110003",
+      "110004",
+      "110005"
+    ],
+    "basePrice": 5000,
+    "rating": 4.5,
+    "reviews": [
+      {
+        "orderId": "sample1",
+        "rating": 5,
+        "comment": "Excellent service, very professional team"
+      },
+      {
+        "orderId": "sample2",
+        "rating": 4,
+        "comment": "Good service, on time and careful with items"
+      }
+    ],
+    "availability": "available",
+    "affiliate": {
+      "crossLeadsSubmitted": 0,
+      "discountedCommissionsRemaining": 0,
+      "commissionHistory": []
+    }
+  },
+  {
+    "vendorId": "v2",
+    "name": "Safe & Swift Relocations",
+    "email": "bookings@safeswift.com",
+    "serviceAreas": [
+      "110001",
+      "110002",
+      "110003"
+    ],
+    "basePrice": 4500,
+    "rating": 4.2,
+    "reviews": [
+      {
+        "orderId": "sample3",
+        "rating": 4,
+        "comment": "Reliable service, good packing"
+      }
+    ],
+    "availability": "available",
+    "affiliate": {
+      "crossLeadsSubmitted": 0,
+      "discountedCommissionsRemaining": 0,
+      "commissionHistory": []
+    }
+  },
+  {
+    "vendorId": "v3",
+    "name": "Premium Packers",
+    "email": "support@premiumpackers.com",
+    "serviceAreas": [
+      "110001",
+      "110005",
+      "110006"
+    ],
+    "basePrice": 6000,
+    "rating": 4.8,
+    "reviews": [
+      {
+        "orderId": "sample4",
+        "rating": 5,
+        "comment": "Best moving service I've used"
+      },
+      {
+        "orderId": "sample5",
+        "rating": 5,
+        "comment": "Very professional and careful with fragile items"
+      },
+      {
+        "orderId": "sample6",
+        "rating": 4,
+        "comment": "Great service but slightly expensive"
+      }
+    ],
+    "availability": "available",
+    "affiliate": {
+      "crossLeadsSubmitted": 0,
+      "discountedCommissionsRemaining": 0,
+      "commissionHistory": []
+    }
+  },
+  {
+    "vendorId": "07d0dc00-5d0c-4045-b4bc-9e13663f1ce6",
+    "name": "Test Company",
+    "email": "raghava.b@excelsoftservices.com",
+    "serviceAreas": [
+      "110001",
+      "400001"
+    ],
+    "basePrice": 10000,
+    "description": "snkdjsk",
+    "rating": 0,
+    "reviews": [],
+    "availability": "available",
+    "phone": "123456789",
+    "whatsapp": "123456789",
+    "affiliate": {
+      "crossLeadsSubmitted": 0,
+      "discountedCommissionsRemaining": 0,
+      "commissionHistory": []
+    }
+  }
+]

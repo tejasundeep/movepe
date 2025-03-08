@@ -1,0 +1,106 @@
+/* Suggestions dropdown styling */
+.suggestions {
+  position: absolute;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  width: 100%;
+  z-index: 1000;
+  margin-top: 2px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.suggestion-item:hover {
+  background-color: #f8f9fa;
+}
+
+/* Star rating styling */
+.star-rating {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.text-warning {
+  color: #ffc107;
+}
+
+/* Card hover effects */
+.card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Button loading state */
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Form validation styling */
+.form-control.is-invalid {
+  border-color: #dc3545;
+  padding-right: calc(1.5em + 0.75rem);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right calc(0.375em + 0.1875rem) center;
+  background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+/* Loading animation */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+.loading-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Profile image upload styling */
+.profile-image-container {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.profile-image-container:hover {
+  transform: scale(1.02);
+}
+
+.profile-image {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #dee2e6;
+}
+
+.image-upload-icon {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background-color: var(--bs-primary);
+  color: white;
+  border-radius: 50%;
+  padding: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: background-color 0.2s;
+}
+
+.image-upload-icon:hover {
+  background-color: var(--bs-primary-dark);
+} 

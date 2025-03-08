@@ -1,0 +1,34 @@
+[
+  {
+    "id": "adfb5de7-d4f3-401e-b470-f95e0be8fd2b",
+    "name": "Teja Sundeep",
+    "email": "tsreddykarri@gmail.com",
+    "password": "$2b$10$qeb7pmfAz40vOVK7JR.d3uFnz2.lnly8xw9xw03cetoa9e/H36BN2",
+    "role": "user",
+    "phone": "8500993663",
+    "whatsapp": "8688474613",
+    "createdAt": "2025-02-24T04:19:22.389Z",
+    "updatedAt": "2025-03-08T09:38:49.515Z"
+  },
+  {
+    "id": "07d0dc00-5d0c-4045-b4bc-9e13663f1ce6",
+    "name": "Raghava",
+    "email": "raghava.b@excelsoftservices.com",
+    "password": "$2b$10$XbQXR7DcatpqbXue1LFJsuTJemud5RyNoUmc9mPRODA.sICE2Ahwi",
+    "role": "vendor",
+    "phone": "123456789",
+    "whatsapp": "123456789",
+    "createdAt": "2025-02-24T04:27:32.722Z",
+    "updatedAt": "2025-03-01T22:06:44.992Z"
+  },
+  {
+    "id": "f8a7b6c5-d4e3-4f2a-1b0c-9d8e7f6a5b4c",
+    "name": "Admin User",
+    "email": "admin@movepe.com",
+    "password": "$2b$10$XbQXR7DcatpqbXue1LFJsuTJemud5RyNoUmc9mPRODA.sICE2Ahwi",
+    "role": "admin",
+    "phone": "9999999999",
+    "whatsapp": "9999999999",
+    "createdAt": "2025-03-03T10:00:00.000Z"
+  }
+]

@@ -1,0 +1,60 @@
+{
+  "generatedAt": "2025-03-01T23:36:57.653Z",
+  "totalNotifications": 5,
+  "byNotificationType": [
+    {
+      "type": "payment_received",
+      "count": 2,
+      "percentage": "40.00"
+    },
+    {
+      "type": "order_status_update",
+      "count": 1,
+      "percentage": "20.00"
+    },
+    {
+      "type": "quote_request",
+      "count": 1,
+      "percentage": "20.00"
+    },
+    {
+      "type": "inventory_condition_update",
+      "count": 1,
+      "percentage": "20.00"
+    }
+  ],
+  "byChannel": [
+    {
+      "channel": "email",
+      "count": 2,
+      "percentage": "40.00"
+    },
+    {
+      "channel": "sms",
+      "count": 1,
+      "percentage": "20.00"
+    },
+    {
+      "channel": "whatsapp",
+      "count": 1,
+      "percentage": "20.00"
+    },
+    {
+      "channel": "in_app",
+      "count": 1,
+      "percentage": "20.00"
+    }
+  ],
+  "byRecipientType": [
+    {
+      "type": "user",
+      "count": 3,
+      "percentage": "60.00"
+    },
+    {
+      "type": "vendor",
+      "count": 2,
+      "percentage": "40.00"
+    }
+  ]
+}
