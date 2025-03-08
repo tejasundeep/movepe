@@ -20,6 +20,13 @@
     ],
     "isCrossLead": false,
     "referringVendorId": null,
-    "commissionRate": 20
+    "commissionRate": 20,
+    "statusHistory": [
+      {
+        "status": "Initiated",
+        "timestamp": "2025-03-01T14:00:39.425Z",
+        "comment": "System generated status entry"
+      }
+    ]
   }
 ]

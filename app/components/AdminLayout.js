@@ -7,7 +7,7 @@ import { Container, Row, Col, Nav, Spinner, Button } from 'react-bootstrap'
 import Link from 'next/link'
 import { 
   FaUsers, FaStore, FaBoxes, FaChartBar, FaCog, FaTachometerAlt, 
-  FaSignOutAlt, FaBell, FaFileExport, FaHistory, FaServer
+  FaSignOutAlt, FaBell, FaFileExport, FaHistory, FaServer, FaThermometerHalf
 } from 'react-icons/fa'
 import { signOut } from 'next-auth/react'
 
@@ -184,6 +184,15 @@ export default function AdminLayout({ children }) {
               >
                 <FaChartBar className="me-3" />
                 {!collapsed && <span>Analytics</span>}
+              </Link>
+            </Nav.Item>
+            <Nav.Item>
+              <Link 
+                href="/admin/operational-bottlenecks" 
+                className={`nav-link text-white d-flex align-items-center py-3 ${isActive('/admin/operational-bottlenecks') ? 'active bg-primary rounded' : ''}`}
+              >
+                <FaThermometerHalf className="me-3" />
+                {!collapsed && <span>Bottleneck Analysis</span>}
               </Link>
             </Nav.Item>
             <Nav.Item>

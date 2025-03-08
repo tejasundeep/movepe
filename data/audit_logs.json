@@ -1,5 +1,27 @@
 [
   {
+    "id": "audit_1741427001130_gtg54ksf",
+    "adminEmail": "admin@movepe.com",
+    "action": "view_users_list",
+    "entityType": "user",
+    "entityId": "all",
+    "details": {
+      "count": 3
+    },
+    "timestamp": "2025-03-08T09:43:21.130Z"
+  },
+  {
+    "id": "audit_1741427001057_sgk61hwk",
+    "adminEmail": "admin@movepe.com",
+    "action": "view_users_list",
+    "entityType": "user",
+    "entityId": "all",
+    "details": {
+      "count": 3
+    },
+    "timestamp": "2025-03-08T09:43:21.058Z"
+  },
+  {
     "id": "audit_1741426735245_m6rlvzlo",
     "adminEmail": "admin@movepe.com",
     "action": "view_users_list",

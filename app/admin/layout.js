@@ -119,6 +119,7 @@ export default function AdminRootLayout({ children }) {
     { name: 'Orders', path: '/admin/orders' },
     { name: 'Notifications', path: '/admin/notifications' },
     { name: 'Analytics', path: '/admin/analytics' },
+    { name: 'Operational Bottlenecks', path: '/admin/operational-bottlenecks' },
     { name: 'Audit Logs', path: '/admin/audit-logs' },
     { name: 'System Health', path: '/admin/system-health' },
     { name: 'Settings', path: '/admin/settings' },

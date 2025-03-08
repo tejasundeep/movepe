@@ -10,7 +10,8 @@
     "init-data": "node scripts/initialize-data.js",
     "notification-report": "node scripts/notification-analytics-report.js",
     "create-test-notifications": "node scripts/create-test-notification.js",
-    "test-pricing": "node scripts/test-pricing-service.js"
+    "test-pricing": "node scripts/test-pricing-service.js",
+    "enhance-status-history": "node scripts/enhance-order-status-history.js"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.4",
