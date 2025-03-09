@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Badge, Button, Row, Col, Spinner, Form, Modal } from 'react-bootstrap';
 import { FaMapMarkerAlt, FaBox, FaUser, FaPhone, FaClock, FaMoneyBillWave, FaRoute } from 'react-icons/fa';
 
@@ -13,15 +13,47 @@ export default function ActiveDeliveryCard({ delivery, onUpdateStatus }) {
     notes: ''
   });
 
+  // Validate delivery object
+  if (!delivery || typeof delivery !== 'object') {
+    return (
+      <Card className="mb-3 shadow-sm">
+        <Card.Body>
+          <div className="alert alert-danger">Invalid delivery data</div>
+        </Card.Body>
+      </Card>
+    );
+  }
+
+  // Reset status update when modal is opened
+  useEffect(() => {
+    if (showStatusModal) {
+      setStatusUpdate({
+        status: '',
+        notes: ''
+      });
+    }
+  }, [showStatusModal]);
+
   const handleStatusChange = () => {
     setShowStatusModal(true);
   };
 
   const handleCloseModal = () => {
     setShowStatusModal(false);
+    setError(null);
   };
 
   const handleUpdateStatus = async () => {
+    if (!statusUpdate.status) {
+      setError('Please select a status');
+      return;
+    }
+
+    if (!delivery.orderId) {
+      setError('Invalid order ID');
+      return;
+    }
+    
     try {
       setLoading(true);
       setError(null);
@@ -36,18 +68,27 @@ export default function ActiveDeliveryCard({ delivery, onUpdateStatus }) {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: true
-    });
+    if (!dateString) return 'N/A';
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid date';
+    }
   };
 
   const getStatusBadge = (status) => {
+    if (!status) return <Badge bg="secondary">Unknown</Badge>;
+    
     switch (status) {
       case 'accepted':
         return <Badge bg="success">Accepted</Badge>;
@@ -67,6 +108,8 @@ export default function ActiveDeliveryCard({ delivery, onUpdateStatus }) {
   };
 
   const getNextStatusOptions = (currentStatus) => {
+    if (!currentStatus) return [];
+    
     switch (currentStatus) {
       case 'accepted':
         return [
@@ -88,6 +131,11 @@ export default function ActiveDeliveryCard({ delivery, onUpdateStatus }) {
           { value: 'delivered', label: 'Delivered' },
           { value: 'failed_delivery', label: 'Failed Delivery' }
         ];
+      case 'delivery_delayed':
+        return [
+          { value: 'out_for_delivery', label: 'Out for Delivery' },
+          { value: 'failed_delivery', label: 'Failed Delivery' }
+        ];
       case 'failed_delivery':
         return [
           { value: 'reattempt_delivery', label: 'Reattempt Delivery' },
@@ -98,11 +146,14 @@ export default function ActiveDeliveryCard({ delivery, onUpdateStatus }) {
     }
   };
 
+  const nextStatusOptions = getNextStatusOptions(delivery.status);
+  const hasNextStatus = nextStatusOptions.length > 0;
+
   return (
     <Card className="mb-3 shadow-sm">
       <Card.Header className="d-flex justify-content-between align-items-center">
         <div>
-          <h5 className="mb-0">Order #{delivery.orderId.substring(0, 8)}</h5>
+          <h5 className="mb-0">Order #{delivery.orderId ? delivery.orderId.substring(0, 8) : 'N/A'}</h5>
           {getStatusBadge(delivery.status)}
         </div>
         <div>
@@ -115,11 +166,11 @@ export default function ActiveDeliveryCard({ delivery, onUpdateStatus }) {
           <Col xs={12} md={6}>
             <div className="mb-2">
               <FaMapMarkerAlt className="text-danger me-2" />
-              <strong>Pickup:</strong> {delivery.pickupAddress}
+              <strong>Pickup:</strong> {delivery.pickupAddress || 'N/A'}
             </div>
             <div>
               <FaMapMarkerAlt className="text-success me-2" />
-              <strong>Destination:</strong> {delivery.destinationAddress}
+              <strong>Destination:</strong> {delivery.destinationAddress || 'N/A'}
             </div>
           </Col>
           <Col xs={12} md={6}>
@@ -138,11 +189,11 @@ export default function ActiveDeliveryCard({ delivery, onUpdateStatus }) {
           <Col xs={12}>
             <div className="mb-2">
               <FaUser className="me-2" />
-              <strong>Customer:</strong> {delivery.customerName}
+              <strong>Customer:</strong> {delivery.customerName || 'N/A'}
             </div>
             <div>
               <FaPhone className="me-2" />
-              <strong>Contact:</strong> {delivery.customerPhone}
+              <strong>Contact:</strong> {delivery.customerPhone || 'N/A'}
             </div>
           </Col>
         </Row>
@@ -152,7 +203,7 @@ export default function ActiveDeliveryCard({ delivery, onUpdateStatus }) {
         <div className="d-flex justify-content-between align-items-center">
           <Button 
             variant="outline-primary" 
-            href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(delivery.pickupAddress)}&destination=${encodeURIComponent(delivery.destinationAddress)}`}
+            href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(delivery.pickupAddress || '')}&destination=${encodeURIComponent(delivery.destinationAddress || '')}`}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -162,7 +213,7 @@ export default function ActiveDeliveryCard({ delivery, onUpdateStatus }) {
           <Button 
             variant="primary" 
             onClick={handleStatusChange}
-            disabled={loading || getNextStatusOptions(delivery.status).length === 0}
+            disabled={loading || !hasNextStatus}
           >
             {loading ? <Spinner animation="border" size="sm" /> : 'Update Status'}
           </Button>
@@ -184,7 +235,7 @@ export default function ActiveDeliveryCard({ delivery, onUpdateStatus }) {
                 required
               >
                 <option value="">Select new status</option>
-                {getNextStatusOptions(delivery.status).map(option => (
+                {nextStatusOptions.map(option => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -202,6 +253,7 @@ export default function ActiveDeliveryCard({ delivery, onUpdateStatus }) {
               />
             </Form.Group>
           </Form>
+          {error && <div className="alert alert-danger mt-3">{error}</div>}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={handleCloseModal}>

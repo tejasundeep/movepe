@@ -9,7 +9,23 @@ export default function RideRequestCard({ request, onAccept, onDecline }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Validate request object
+  if (!request || typeof request !== 'object') {
+    return (
+      <Card className="mb-3 shadow-sm">
+        <Card.Body>
+          <div className="alert alert-danger">Invalid request data</div>
+        </Card.Body>
+      </Card>
+    );
+  }
+
   const handleAccept = async () => {
+    if (!request.orderId) {
+      setError('Invalid order ID');
+      return;
+    }
+    
     try {
       setLoading(true);
       setError(null);
@@ -23,6 +39,11 @@ export default function RideRequestCard({ request, onAccept, onDecline }) {
   };
 
   const handleDecline = async () => {
+    if (!request.orderId) {
+      setError('Invalid order ID');
+      return;
+    }
+    
     try {
       setLoading(true);
       setError(null);
@@ -36,18 +57,27 @@ export default function RideRequestCard({ request, onAccept, onDecline }) {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: true
-    });
+    if (!dateString) return 'N/A';
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid date';
+    }
   };
 
   const getStatusBadge = (status) => {
+    if (!status) return <Badge bg="secondary">Unknown</Badge>;
+    
     switch (status) {
       case 'pending':
         return <Badge bg="warning">Pending</Badge>;
@@ -68,7 +98,7 @@ export default function RideRequestCard({ request, onAccept, onDecline }) {
     <Card className="mb-3 shadow-sm">
       <Card.Header className="d-flex justify-content-between align-items-center">
         <div>
-          <h5 className="mb-0">Order #{request.orderId.substring(0, 8)}</h5>
+          <h5 className="mb-0">Order #{request.orderId ? request.orderId.substring(0, 8) : 'N/A'}</h5>
           {getStatusBadge(request.status)}
         </div>
         <div>
@@ -81,11 +111,11 @@ export default function RideRequestCard({ request, onAccept, onDecline }) {
           <Col xs={12} md={6}>
             <div className="mb-2">
               <FaMapMarkerAlt className="text-danger me-2" />
-              <strong>Pickup:</strong> {request.pickupAddress}
+              <strong>Pickup:</strong> {request.pickupAddress || 'N/A'}
             </div>
             <div>
               <FaMapMarkerAlt className="text-success me-2" />
-              <strong>Destination:</strong> {request.destinationAddress}
+              <strong>Destination:</strong> {request.destinationAddress || 'N/A'}
             </div>
           </Col>
           <Col xs={12} md={6}>
@@ -104,11 +134,11 @@ export default function RideRequestCard({ request, onAccept, onDecline }) {
           <Col xs={12}>
             <div className="mb-2">
               <FaUser className="me-2" />
-              <strong>Customer:</strong> {request.customerName}
+              <strong>Customer:</strong> {request.customerName || 'N/A'}
             </div>
             <div>
               <FaPhone className="me-2" />
-              <strong>Contact:</strong> {request.customerPhone}
+              <strong>Contact:</strong> {request.customerPhone || 'N/A'}
             </div>
           </Col>
         </Row>

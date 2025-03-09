@@ -24,6 +24,7 @@ export default function RiderDashboard() {
   const [activeTab, setActiveTab] = useState('available');
   const [pendingApproval, setPendingApproval] = useState(false);
 
+  // Fetch rider data when authenticated
   useEffect(() => {
     if (status === 'authenticated') {
       console.log('User authenticated, fetching rider data...');
@@ -31,31 +32,33 @@ export default function RiderDashboard() {
       console.log('User role:', session?.user?.role);
       
       fetchRiderData();
-      
-      // Only fetch orders and deliveries if rider is not pending approval
-      if (!pendingApproval) {
-        fetchAvailableOrders();
-        fetchActiveDeliveries();
-        fetchCompletedDeliveries();
-        
-        // Start location tracking
-        startLocationTracking();
-        
-        // Set up refresh intervals
-        const ordersInterval = setInterval(fetchAvailableOrders, 30000); // Refresh available orders every 30 seconds
-        const deliveriesInterval = setInterval(fetchActiveDeliveries, 30000); // Refresh active deliveries every 30 seconds
-        
-        // Clean up on unmount
-        return () => {
-          if (locationUpdateInterval) {
-            clearInterval(locationUpdateInterval);
-          }
-          clearInterval(ordersInterval);
-          clearInterval(deliveriesInterval);
-        };
-      }
     }
-  }, [status, pendingApproval]);
+  }, [status, session]);
+  
+  // Fetch orders and deliveries when rider is authenticated and not pending approval
+  useEffect(() => {
+    if (status === 'authenticated' && rider && !pendingApproval) {
+      fetchAvailableOrders();
+      fetchActiveDeliveries();
+      fetchCompletedDeliveries();
+      
+      // Start location tracking
+      startLocationTracking();
+      
+      // Set up refresh intervals
+      const ordersInterval = setInterval(fetchAvailableOrders, 30000); // Refresh available orders every 30 seconds
+      const deliveriesInterval = setInterval(fetchActiveDeliveries, 30000); // Refresh active deliveries every 30 seconds
+      
+      // Clean up on unmount
+      return () => {
+        if (locationUpdateInterval) {
+          clearInterval(locationUpdateInterval);
+        }
+        clearInterval(ordersInterval);
+        clearInterval(deliveriesInterval);
+      };
+    }
+  }, [status, rider, pendingApproval]);
 
   // Check online status
   useEffect(() => {
@@ -84,82 +87,7 @@ export default function RiderDashboard() {
     };
   }, [pendingUpdates]);
 
-  const startLocationTracking = () => {
-    if (!navigator.geolocation) {
-      console.error('Geolocation is not supported by this browser.');
-      return;
-    }
-    
-    // Get initial location
-    navigator.geolocation.getCurrentPosition(
-      position => {
-        const location = {
-          lat: position.coords.latitude,
-          lon: position.coords.longitude
-        };
-        setCurrentLocation(location);
-        updateRiderLocation(location);
-      },
-      error => {
-        console.error('Error getting location:', error);
-      }
-    );
-    
-    // Set up interval to update location
-    const interval = setInterval(() => {
-      navigator.geolocation.getCurrentPosition(
-        position => {
-          const location = {
-            lat: position.coords.latitude,
-            lon: position.coords.longitude
-          };
-          setCurrentLocation(location);
-          updateRiderLocation(location);
-        },
-        error => {
-          console.error('Error getting location:', error);
-        }
-      );
-    }, 60000); // Update location every minute
-    
-    setLocationUpdateInterval(interval);
-  };
-
-  const updateRiderLocation = async (location) => {
-    if (!isOnline || !rider) {
-      // Store update for later if offline
-      setPendingUpdates(prev => [...prev, {
-        type: 'location',
-        data: location,
-        timestamp: new Date().toISOString()
-      }]);
-      return;
-    }
-    
-    try {
-      const response = await fetch('/api/rider/update-location', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ location })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update location');
-      }
-    } catch (error) {
-      console.error('Error updating location:', error);
-      // Store update for later if request fails
-      setPendingUpdates(prev => [...prev, {
-        type: 'location',
-        data: location,
-        timestamp: new Date().toISOString()
-      }]);
-    }
-  };
-
-  const processPendingUpdates = async () => {
+  const processPendingUpdates = useCallback(async () => {
     if (!isOnline || pendingUpdates.length === 0) return;
     
     const updates = [...pendingUpdates];
@@ -178,10 +106,108 @@ export default function RiderDashboard() {
         setPendingUpdates(prev => [...prev, update]);
       }
     }
-  };
+  }, [isOnline, pendingUpdates]);
 
-  const fetchRiderData = async () => {
+  const startLocationTracking = useCallback(() => {
+    if (!navigator.geolocation) {
+      console.error('Geolocation is not supported by this browser.');
+      return;
+    }
+    
+    // Get initial location
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        const location = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude // Fixed: changed 'lon' to 'lng' for consistency with API
+        };
+        setCurrentLocation(location);
+        updateRiderLocation(location);
+      },
+      error => {
+        console.error('Error getting location:', error);
+      }
+    );
+    
+    // Set up interval to update location
+    const interval = setInterval(() => {
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          const location = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude // Fixed: changed 'lon' to 'lng' for consistency with API
+          };
+          setCurrentLocation(location);
+          updateRiderLocation(location);
+        },
+        error => {
+          console.error('Error getting location:', error);
+        }
+      );
+    }, 60000); // Update location every minute
+    
+    setLocationUpdateInterval(interval);
+  }, []);
+
+  const updateRiderLocation = useCallback(async (location) => {
+    if (!isOnline || !rider) {
+      // Store update for later if offline
+      setPendingUpdates(prev => [...prev, {
+        type: 'location',
+        data: location,
+        timestamp: new Date().toISOString()
+      }]);
+      return;
+    }
+    
     try {
+      const response = await fetch('/api/rider/update-location', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ location, riderId: rider.id }) // Added riderId for proper identification
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update location');
+      }
+    } catch (error) {
+      console.error('Error updating location:', error);
+      // Store update for later if request fails
+      setPendingUpdates(prev => [...prev, {
+        type: 'location',
+        data: location,
+        timestamp: new Date().toISOString()
+      }]);
+    }
+  }, [isOnline, rider]);
+
+  const updateDeliveryStatus = useCallback(async (orderId, status, notes) => {
+    // This function is referenced in processPendingUpdates but was missing
+    try {
+      const response = await fetch('/api/rider/update-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ orderId, status, notes })
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to update status');
+      }
+    } catch (error) {
+      console.error('Error updating delivery status:', error);
+      throw error;
+    }
+  }, []);
+
+  const fetchRiderData = useCallback(async () => {
+    try {
+      setLoading(true);
       const response = await fetch('/api/rider/profile');
       
       if (!response.ok) {
@@ -210,9 +236,9 @@ export default function RiderDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchAvailableOrders = async () => {
+  const fetchAvailableOrders = useCallback(async () => {
     try {
       console.log('Fetching available orders...');
       const response = await fetch('/api/rider/available-orders');
@@ -230,13 +256,13 @@ export default function RiderDashboard() {
       
       const data = await response.json();
       console.log('Available orders:', data.orders);
-      setAvailableOrders(data.orders);
+      setAvailableOrders(data.orders || []); // Added fallback for null/undefined
     } catch (error) {
       console.error('Error fetching available orders:', error);
     }
-  };
+  }, []);
 
-  const fetchActiveDeliveries = async () => {
+  const fetchActiveDeliveries = useCallback(async () => {
     try {
       const response = await fetch('/api/rider/active-deliveries');
       
@@ -247,13 +273,13 @@ export default function RiderDashboard() {
       }
       
       const data = await response.json();
-      setActiveDeliveries(data.deliveries);
+      setActiveDeliveries(data.deliveries || []); // Added fallback for null/undefined
     } catch (error) {
       console.error('Error fetching active deliveries:', error);
     }
-  };
+  }, []);
 
-  const fetchCompletedDeliveries = async () => {
+  const fetchCompletedDeliveries = useCallback(async () => {
     try {
       const response = await fetch('/api/rider/completed-deliveries');
       
@@ -264,13 +290,18 @@ export default function RiderDashboard() {
       }
       
       const data = await response.json();
-      setCompletedDeliveries(data.deliveries);
+      setCompletedDeliveries(data.deliveries || []); // Added fallback for null/undefined
     } catch (error) {
       console.error('Error fetching completed deliveries:', error);
     }
-  };
+  }, []);
 
   const handleAcceptOrder = async (orderId) => {
+    if (!orderId) {
+      console.error('Invalid order ID');
+      throw new Error('Invalid order ID');
+    }
+    
     try {
       const response = await fetch('/api/rider/accept-order', {
         method: 'POST',
@@ -298,6 +329,11 @@ export default function RiderDashboard() {
   };
 
   const handleDeclineOrder = async (orderId) => {
+    if (!orderId) {
+      console.error('Invalid order ID');
+      throw new Error('Invalid order ID');
+    }
+    
     try {
       const response = await fetch('/api/rider/decline-order', {
         method: 'POST',
@@ -321,6 +357,11 @@ export default function RiderDashboard() {
   };
 
   const handleUpdateDeliveryStatus = async (orderId, status, notes) => {
+    if (!orderId || !status) {
+      console.error('Invalid order ID or status');
+      throw new Error('Invalid order ID or status');
+    }
+    
     if (!isOnline) {
       // Store update for later if offline
       setPendingUpdates(prev => [...prev, {
@@ -429,13 +470,13 @@ export default function RiderDashboard() {
                     <FaMotorcycle className="me-2" />
                     Rider Dashboard
                   </h2>
-                  <h5>Welcome, {rider?.name || session?.user?.name}!</h5>
+                  <h5>Welcome, {rider?.name || session?.user?.name || 'Rider'}!</h5>
                   <p className="text-muted">
                     {!isOnline && <Badge bg="danger" className="me-2">Offline</Badge>}
                     <Badge bg={rider?.status === 'available' ? 'success' : 'warning'} className="me-2">
                       {rider?.status === 'available' ? 'Available' : 'Busy'}
                     </Badge>
-                    <span>Vehicle: {rider?.vehicleDetails?.type} - {rider?.vehicleDetails?.model}</span>
+                    <span>Vehicle: {rider?.vehicleDetails?.type || 'N/A'} - {rider?.vehicleDetails?.model || 'N/A'}</span>
                   </p>
                 </Col>
                 <Col md={4} className="text-end">
@@ -462,13 +503,13 @@ export default function RiderDashboard() {
               <Nav.Item>
                 <Nav.Link eventKey="available">
                   <FaClipboardList className="me-1" />
-                  Available Orders {availableOrders.length > 0 && `(${availableOrders.length})`}
+                  Available Orders {availableOrders?.length > 0 && `(${availableOrders.length})`}
                 </Nav.Link>
               </Nav.Item>
               <Nav.Item>
                 <Nav.Link eventKey="active">
                   <FaRoute className="me-1" />
-                  Active Deliveries {activeDeliveries.length > 0 && `(${activeDeliveries.length})`}
+                  Active Deliveries {activeDeliveries?.length > 0 && `(${activeDeliveries.length})`}
                 </Nav.Link>
               </Nav.Item>
               <Nav.Item>
@@ -486,7 +527,7 @@ export default function RiderDashboard() {
             <Tab.Content>
               <Tab.Pane eventKey="available">
                 {console.log('Rendering available orders tab, orders:', availableOrders)}
-                {availableOrders.length === 0 ? (
+                {!availableOrders || availableOrders.length === 0 ? (
                   <Alert variant="info">
                     No available orders at the moment. Check back later!
                   </Alert>
@@ -503,7 +544,7 @@ export default function RiderDashboard() {
               </Tab.Pane>
 
               <Tab.Pane eventKey="active">
-                {activeDeliveries.length === 0 ? (
+                {!activeDeliveries || activeDeliveries.length === 0 ? (
                   <Alert variant="info">
                     You don't have any active deliveries. Accept an order to get started!
                   </Alert>
@@ -519,7 +560,7 @@ export default function RiderDashboard() {
               </Tab.Pane>
 
               <Tab.Pane eventKey="completed">
-                {completedDeliveries.length === 0 ? (
+                {!completedDeliveries || completedDeliveries.length === 0 ? (
                   <Alert variant="info">
                     You haven't completed any deliveries yet.
                   </Alert>
@@ -541,11 +582,11 @@ export default function RiderDashboard() {
                         <tbody>
                           {completedDeliveries.map(delivery => (
                             <tr key={delivery.orderId}>
-                              <td>#{delivery.orderId.substring(0, 8)}</td>
-                              <td>{new Date(delivery.completedAt || delivery.updatedAt).toLocaleDateString()}</td>
-                              <td>{delivery.customerName}</td>
-                              <td>{delivery.pickupAddress}</td>
-                              <td>{delivery.destinationAddress}</td>
+                              <td>#{delivery.orderId?.substring(0, 8) || 'N/A'}</td>
+                              <td>{delivery.completedAt || delivery.updatedAt ? new Date(delivery.completedAt || delivery.updatedAt).toLocaleDateString() : 'N/A'}</td>
+                              <td>{delivery.customerName || 'N/A'}</td>
+                              <td>{delivery.pickupAddress || 'N/A'}</td>
+                              <td>{delivery.destinationAddress || 'N/A'}</td>
                               <td>
                                 <Badge bg={delivery.status === 'delivered' ? 'success' : 'danger'}>
                                   {delivery.status === 'delivered' ? 'Delivered' : 'Failed'}
