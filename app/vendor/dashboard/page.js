@@ -28,6 +28,15 @@ export default function VendorDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [availability, setAvailability] = useState('available')
+  const [earnings, setEarnings] = useState({
+    totalEarnings: 0,
+    jobEarnings: 0,
+    affiliateEarnings: 0,
+    thisMonth: { total: 0, jobs: 0, affiliate: 0 },
+    lastMonth: { total: 0, jobs: 0, affiliate: 0 },
+    completedJobsCount: 0
+  })
+  const [earningsLoading, setEarningsLoading] = useState(false)
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('new')
 
@@ -39,16 +48,30 @@ export default function VendorDashboard() {
 
   useEffect(() => {
     if (session?.user) {
-      fetchRequests()
-      fetchVendorProfile()
+      refreshAllData()
     }
   }, [session])
 
-  const fetchRequests = async () => {
+  const refreshAllData = async () => {
+    setLoading(true)
     try {
-      setLoading(true)
-      setError('')
-      
+      await Promise.all([
+        fetchRequests(false),
+        fetchVendorProfile(),
+        fetchEarnings()
+      ])
+    } catch (error) {
+      console.error('Error refreshing data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchRequests = async (setLoadingState = true) => {
+    if (setLoadingState) setLoading(true)
+    setError('')
+    
+    try {
       const response = await fetch('/api/vendor/requests')
       
       if (!response.ok) {
@@ -61,7 +84,7 @@ export default function VendorDashboard() {
       console.error('Error fetching requests:', error)
       setError('Failed to load requests. Please try again later.')
     } finally {
-      setLoading(false)
+      if (setLoadingState) setLoading(false)
     }
   }
 
@@ -80,6 +103,40 @@ export default function VendorDashboard() {
     } catch (error) {
       console.error('Error fetching vendor profile:', error)
       // Don't set an error state here as it's not critical for the page to function
+    }
+  }
+
+  const fetchEarnings = async () => {
+    setEarningsLoading(true)
+    try {
+      const response = await fetch('/api/vendor/earnings')
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch earnings data')
+      }
+      
+      const data = await response.json()
+      setEarnings({
+        totalEarnings: data.totalEarnings || 0,
+        jobEarnings: data.jobEarnings || 0,
+        affiliateEarnings: data.affiliateEarnings || 0,
+        thisMonth: {
+          total: data.thisMonth?.total || 0,
+          jobs: data.thisMonth?.jobs || 0,
+          affiliate: data.thisMonth?.affiliate || 0
+        },
+        lastMonth: {
+          total: data.lastMonth?.total || 0,
+          jobs: data.lastMonth?.jobs || 0,
+          affiliate: data.lastMonth?.affiliate || 0
+        },
+        completedJobsCount: data.completedJobsCount || 0
+      })
+    } catch (error) {
+      console.error('Error fetching earnings:', error)
+      // Don't set an error state here as it's not critical for the page to function
+    } finally {
+      setEarningsLoading(false)
     }
   }
 
@@ -107,8 +164,8 @@ export default function VendorDashboard() {
       // Show success message
       toast.success('Your price has been sent to the customer!')
       
-      // Refresh requests after submitting quote
-      fetchRequests()
+      // Refresh all data after submitting quote
+      refreshAllData()
       
       // Return the response data so the component can use it
       return responseData;
@@ -233,10 +290,10 @@ export default function VendorDashboard() {
           <Card className="text-center h-100 shadow-sm">
             <Card.Body>
               <div className="icon-container mb-2">
-                <FaClipboardList size={32} color="#007bff" />
+                <FaMoneyBillWave size={32} color="#28a745" />
               </div>
-              <h4>{newRequests.length}</h4>
-              <div>New Requests</div>
+              <h4>₹{earnings.totalEarnings.toLocaleString('en-IN')}</h4>
+              <div>Total Earnings</div>
             </Card.Body>
           </Card>
         </Col>
@@ -244,10 +301,10 @@ export default function VendorDashboard() {
           <Card className="text-center h-100 shadow-sm">
             <Card.Body>
               <div className="icon-container mb-2">
-                <FaMoneyBillWave size={32} color="#ffc107" />
+                <FaMoneyBillWave size={32} color="#007bff" />
               </div>
-              <h4>{submittedQuotes.length}</h4>
-              <div>Waiting</div>
+              <h4>₹{earnings.thisMonth.total.toLocaleString('en-IN')}</h4>
+              <div>This Month</div>
             </Card.Body>
           </Card>
         </Col>
@@ -255,10 +312,10 @@ export default function VendorDashboard() {
           <Card className="text-center h-100 shadow-sm">
             <Card.Body>
               <div className="icon-container mb-2">
-                <FaTruck size={32} color="#28a745" />
+                <FaTruck size={32} color="#ffc107" />
               </div>
-              <h4>{wonOpportunities.length}</h4>
-              <div>Confirmed Jobs</div>
+              <h4>{earnings.completedJobsCount}</h4>
+              <div>Completed Jobs</div>
             </Card.Body>
           </Card>
         </Col>
@@ -266,10 +323,10 @@ export default function VendorDashboard() {
           <Card className="text-center h-100 shadow-sm">
             <Card.Body>
               <div className="icon-container mb-2">
-                <FaUserClock size={32} color="#6c757d" />
+                <FaExchangeAlt size={32} color="#6c757d" />
               </div>
-              <h4>{lostOpportunities.length}</h4>
-              <div>Not Selected</div>
+              <h4>₹{earnings.affiliateEarnings.toLocaleString('en-IN')}</h4>
+              <div>Affiliate Earnings</div>
             </Card.Body>
           </Card>
         </Col>
@@ -457,12 +514,12 @@ export default function VendorDashboard() {
           <Button 
             variant="primary" 
             size="lg" 
-            onClick={fetchRequests}
+            onClick={refreshAllData}
             className="px-4 py-2"
-            disabled={loading}
-            aria-label="Refresh job list"
+            disabled={loading || earningsLoading}
+            aria-label="Refresh dashboard data"
           >
-            {loading ? (
+            {loading || earningsLoading ? (
               <>
                 <Spinner
                   as="span"
@@ -475,7 +532,7 @@ export default function VendorDashboard() {
                 Loading...
               </>
             ) : (
-              <>Refresh Jobs</>
+              <>Refresh Dashboard</>
             )}
           </Button>
         </Col>

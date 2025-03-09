@@ -4,6 +4,8 @@ import { vendorService } from '../../../../lib/services/vendorService'
 import { withRateLimit } from '../../../../lib/middleware/rateLimitMiddleware'
 import { authOptions } from '../../../../lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 async function getVendorProfile(request) {
   try {
     const session = await getServerSession(authOptions)
