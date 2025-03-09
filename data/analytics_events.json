@@ -76,5 +76,37 @@
       "email": "lucky@gmail.com"
     },
     "timestamp": "2025-03-08T16:11:00.733Z"
+  },
+  {
+    "eventType": "vendor_availability_changed",
+    "eventData": {
+      "vendorId": "07d0dc00-5d0c-4045-b4bc-9e13663f1ce6",
+      "availability": "unavailable"
+    },
+    "timestamp": "2025-03-09T09:01:13.797Z"
+  },
+  {
+    "eventType": "vendor_availability_changed",
+    "eventData": {
+      "vendorId": "07d0dc00-5d0c-4045-b4bc-9e13663f1ce6",
+      "availability": "available"
+    },
+    "timestamp": "2025-03-09T09:01:23.511Z"
+  },
+  {
+    "eventType": "vendor_availability_changed",
+    "eventData": {
+      "vendorId": "07d0dc00-5d0c-4045-b4bc-9e13663f1ce6",
+      "availability": "unavailable"
+    },
+    "timestamp": "2025-03-09T09:01:26.012Z"
+  },
+  {
+    "eventType": "vendor_availability_changed",
+    "eventData": {
+      "vendorId": "07d0dc00-5d0c-4045-b4bc-9e13663f1ce6",
+      "availability": "available"
+    },
+    "timestamp": "2025-03-09T09:04:47.968Z"
   }
 ]

@@ -53,11 +53,6 @@ export default function Navigation() {
                 {/* Show Vendor Dashboard link only for vendors */}
                 {session.user.role === 'vendor' && (
                   <>
-                    <Link href="/vendor/dashboard" passHref legacyBehavior>
-                      <Nav.Link className="d-flex align-items-center">
-                        <FaTruck className="me-2" /> My Jobs
-                      </Nav.Link>
-                    </Link>
                     <Link href="/vendor/affiliate" passHref legacyBehavior>
                       <Nav.Link className="d-flex align-items-center">
                         <FaExchangeAlt className="me-2" /> Affiliate

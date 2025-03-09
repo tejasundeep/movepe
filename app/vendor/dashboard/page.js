@@ -40,6 +40,7 @@ export default function VendorDashboard() {
   useEffect(() => {
     if (session?.user) {
       fetchRequests()
+      fetchVendorProfile()
     }
   }, [session])
 
@@ -61,6 +62,24 @@ export default function VendorDashboard() {
       setError('Failed to load requests. Please try again later.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchVendorProfile = async () => {
+    try {
+      const response = await fetch('/api/vendor/profile')
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch vendor profile')
+      }
+      
+      const data = await response.json()
+      if (data.vendor && data.vendor.availability) {
+        setAvailability(data.vendor.availability)
+      }
+    } catch (error) {
+      console.error('Error fetching vendor profile:', error)
+      // Don't set an error state here as it's not critical for the page to function
     }
   }
 
@@ -125,6 +144,9 @@ export default function VendorDashboard() {
       toast.success(newStatus === 'available' 
         ? 'You are now available for new jobs' 
         : 'You are now marked as unavailable for new jobs')
+        
+      // Fetch the updated vendor profile to ensure state is in sync with the server
+      await fetchVendorProfile()
     } catch (error) {
       console.error('Error updating availability:', error)
       // Revert availability if update fails
