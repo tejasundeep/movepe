@@ -90,8 +90,13 @@ export default function RiderDashboard() {
   const processPendingUpdates = useCallback(async () => {
     if (!isOnline || pendingUpdates.length === 0) return;
     
+    // Create a copy of the updates to process
     const updates = [...pendingUpdates];
+    // Clear the pending updates immediately to prevent duplicate processing
     setPendingUpdates([]);
+    
+    // Track failed updates to add back to the queue
+    const failedUpdates = [];
     
     for (const update of updates) {
       try {
@@ -103,52 +108,17 @@ export default function RiderDashboard() {
       } catch (error) {
         console.error('Error processing pending update:', error);
         // Put the update back in the queue
-        setPendingUpdates(prev => [...prev, update]);
+        failedUpdates.push(update);
       }
     }
-  }, [isOnline, pendingUpdates]);
-
-  const startLocationTracking = useCallback(() => {
-    if (!navigator.geolocation) {
-      console.error('Geolocation is not supported by this browser.');
-      return;
+    
+    // Add failed updates back to the queue
+    if (failedUpdates.length > 0) {
+      setPendingUpdates(prev => [...prev, ...failedUpdates]);
     }
-    
-    // Get initial location
-    navigator.geolocation.getCurrentPosition(
-      position => {
-        const location = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude // Fixed: changed 'lon' to 'lng' for consistency with API
-        };
-        setCurrentLocation(location);
-        updateRiderLocation(location);
-      },
-      error => {
-        console.error('Error getting location:', error);
-      }
-    );
-    
-    // Set up interval to update location
-    const interval = setInterval(() => {
-      navigator.geolocation.getCurrentPosition(
-        position => {
-          const location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude // Fixed: changed 'lon' to 'lng' for consistency with API
-          };
-          setCurrentLocation(location);
-          updateRiderLocation(location);
-        },
-        error => {
-          console.error('Error getting location:', error);
-        }
-      );
-    }, 60000); // Update location every minute
-    
-    setLocationUpdateInterval(interval);
-  }, []);
+  }, [isOnline, pendingUpdates, updateRiderLocation, updateDeliveryStatus]);
 
+  // Move updateRiderLocation function before startLocationTracking
   const updateRiderLocation = useCallback(async (location) => {
     if (!isOnline || !rider) {
       // Store update for later if offline
@@ -157,22 +127,34 @@ export default function RiderDashboard() {
         data: location,
         timestamp: new Date().toISOString()
       }]);
-      return;
+      return Promise.reject(new Error('Offline or rider not available'));
     }
     
     try {
+      // Ensure location has the correct format
+      const normalizedLocation = {
+        lat: location.lat.toString(),
+        lon: location.lon.toString(),
+        accuracy: location.accuracy ? location.accuracy.toString() : undefined
+      };
+      
       const response = await fetch('/api/rider/update-location', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ location, riderId: rider.id }) // Added riderId for proper identification
+        body: JSON.stringify({ 
+          location: normalizedLocation, 
+          riderId: rider.riderId || rider.id 
+        })
       });
       
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to update location');
       }
+      
+      return true;
     } catch (error) {
       console.error('Error updating location:', error);
       // Store update for later if request fails
@@ -181,11 +163,26 @@ export default function RiderDashboard() {
         data: location,
         timestamp: new Date().toISOString()
       }]);
+      throw error;
     }
-  }, [isOnline, rider]);
+  }, [isOnline, rider, setPendingUpdates]);
 
   const updateDeliveryStatus = useCallback(async (orderId, status, notes) => {
-    // This function is referenced in processPendingUpdates but was missing
+    if (!orderId || !status) {
+      console.error('Invalid order ID or status');
+      throw new Error('Invalid order ID or status');
+    }
+    
+    if (!isOnline) {
+      // Store update for later if offline
+      setPendingUpdates(prev => [...prev, {
+        type: 'status',
+        data: { orderId, status, notes },
+        timestamp: new Date().toISOString()
+      }]);
+      return Promise.reject(new Error('Cannot update status while offline'));
+    }
+    
     try {
       const response = await fetch('/api/rider/update-status', {
         method: 'POST',
@@ -199,11 +196,224 @@ export default function RiderDashboard() {
         const data = await response.json();
         throw new Error(data.error || 'Failed to update status');
       }
+      
+      return true;
     } catch (error) {
       console.error('Error updating delivery status:', error);
+      // Store for retry if it's a network error
+      if (error.message.includes('Failed to fetch') || error.message.includes('Network error')) {
+        setPendingUpdates(prev => [...prev, {
+          type: 'status',
+          data: { orderId, status, notes },
+          timestamp: new Date().toISOString()
+        }]);
+      }
       throw error;
     }
-  }, []);
+  }, [isOnline, setPendingUpdates]);
+
+  const startLocationTracking = useCallback(() => {
+    if (!navigator.geolocation) {
+      console.error('Geolocation is not supported by this browser.');
+      return;
+    }
+    
+    // Last known location
+    let lastLocation = null;
+    // Last successful update timestamp
+    let lastUpdateTime = Date.now();
+    // Failed update count for exponential backoff
+    let failedUpdates = 0;
+    // Minimum distance (in meters) to trigger a location update
+    const minDistanceThreshold = 100; // 100 meters
+    // Maximum time between updates regardless of movement
+    const maxUpdateInterval = 15 * 60 * 1000; // 15 minutes
+    // Store timeout IDs for cleanup
+    let locationCheckTimeout = null;
+    
+    // Calculate distance between two points using Haversine formula
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+      if (typeof lat1 !== 'number' || typeof lon1 !== 'number' || 
+          typeof lat2 !== 'number' || typeof lon2 !== 'number') {
+        return Infinity; // Force update if any coordinate is invalid
+      }
+      
+      const R = 6371e3; // Earth radius in meters
+      const φ1 = lat1 * Math.PI/180;
+      const φ2 = lat2 * Math.PI/180;
+      const Δφ = (lat2-lat1) * Math.PI/180;
+      const Δλ = (lon2-lon1) * Math.PI/180;
+
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+      return R * c; // Distance in meters
+    };
+    
+    // Determine update interval based on rider status and activity
+    const getUpdateInterval = () => {
+      // If we've had consecutive failures, use exponential backoff
+      if (failedUpdates > 0) {
+        const backoffTime = Math.min(60000 * Math.pow(2, failedUpdates - 1), 15 * 60 * 1000);
+        console.log(`Using backoff time of ${backoffTime}ms after ${failedUpdates} failed updates`);
+        return backoffTime;
+      }
+      
+      // If rider is busy (has active delivery), update more frequently
+      if (rider?.status === 'busy' || activeDeliveries?.length > 0) {
+        return 30000; // 30 seconds
+      }
+      
+      // If rider is available but no active deliveries, update less frequently
+      if (rider?.status === 'available') {
+        return 60000; // 1 minute
+      }
+      
+      // If rider is offline or in another state, update very infrequently
+      return 300000; // 5 minutes
+    };
+    
+    // Validate and normalize location data
+    const normalizeLocation = (position) => {
+      try {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        
+        // Basic validation
+        if (typeof lat !== 'number' || typeof lon !== 'number' ||
+            isNaN(lat) || isNaN(lon) || 
+            lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+          console.error('Invalid coordinates:', lat, lon);
+          return null;
+        }
+        
+        return {
+          lat,
+          lon,
+          accuracy: position.coords.accuracy,
+          timestamp: position.timestamp || Date.now()
+        };
+      } catch (error) {
+        console.error('Error normalizing location:', error);
+        return null;
+      }
+    };
+    
+    // Get initial location
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        const location = normalizeLocation(position);
+        if (location) {
+          setCurrentLocation(location);
+          updateRiderLocation(location)
+            .then(() => {
+              lastLocation = location;
+              lastUpdateTime = Date.now();
+              failedUpdates = 0;
+            })
+            .catch(error => {
+              console.error('Failed to update initial location:', error);
+              failedUpdates++;
+            });
+        }
+      },
+      error => {
+        console.error('Error getting initial location:', error);
+        failedUpdates++;
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+    
+    // Set up interval to update location with adaptive frequency
+    const checkLocation = () => {
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          const newLocation = normalizeLocation(position);
+          if (!newLocation) {
+            console.error('Invalid location data received');
+            failedUpdates++;
+            locationCheckTimeout = setTimeout(checkLocation, getUpdateInterval());
+            return;
+          }
+          
+          // Calculate distance from last update
+          let shouldUpdate = false;
+          const now = Date.now();
+          
+          if (lastLocation) {
+            const distance = calculateDistance(
+              lastLocation.lat, lastLocation.lon,
+              newLocation.lat, newLocation.lon
+            );
+            
+            const timeSinceLastUpdate = now - lastUpdateTime;
+            
+            // Update if:
+            // 1. Moved more than threshold distance, OR
+            // 2. Maximum time between updates has elapsed
+            shouldUpdate = distance > minDistanceThreshold || 
+                          timeSinceLastUpdate > maxUpdateInterval;
+                          
+            if (shouldUpdate) {
+              console.log(`Updating location: moved ${distance.toFixed(2)}m, time since last update: ${(timeSinceLastUpdate/1000).toFixed(0)}s`);
+            }
+          } else {
+            // Always update if we don't have a last location
+            shouldUpdate = true;
+          }
+          
+          if (shouldUpdate) {
+            setCurrentLocation(newLocation);
+            updateRiderLocation(newLocation)
+              .then(() => {
+                lastLocation = newLocation;
+                lastUpdateTime = now;
+                failedUpdates = 0;
+              })
+              .catch(error => {
+                console.error('Failed to update location on server:', error);
+                failedUpdates++;
+              });
+          } else {
+            console.log('Skipping location update - not enough movement');
+          }
+          
+          // Schedule next check with adaptive interval
+          locationCheckTimeout = setTimeout(checkLocation, getUpdateInterval());
+        },
+        error => {
+          console.error('Error getting location:', error);
+          failedUpdates++;
+          // Even on error, continue checking with backoff interval
+          locationCheckTimeout = setTimeout(checkLocation, getUpdateInterval());
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    };
+    
+    // Start the adaptive location checking
+    locationCheckTimeout = setTimeout(checkLocation, getUpdateInterval());
+    
+    // Store the timeout ID for cleanup
+    setLocationUpdateInterval(locationCheckTimeout);
+    
+    // Return cleanup function
+    return () => {
+      if (locationCheckTimeout) {
+        clearTimeout(locationCheckTimeout);
+      }
+    };
+  }, [rider, activeDeliveries, updateRiderLocation, setCurrentLocation]);
 
   const fetchRiderData = useCallback(async () => {
     try {
@@ -496,115 +706,171 @@ export default function RiderDashboard() {
         </Col>
       </Row>
 
-      <Tab.Container activeKey={activeTab} onSelect={(k) => setActiveTab(k)}>
-        <Row className="mb-3">
-          <Col>
-            <Nav variant="tabs">
-              <Nav.Item>
-                <Nav.Link eventKey="available">
-                  <FaClipboardList className="me-1" />
-                  Available Orders {availableOrders?.length > 0 && `(${availableOrders.length})`}
-                </Nav.Link>
-              </Nav.Item>
-              <Nav.Item>
-                <Nav.Link eventKey="active">
-                  <FaRoute className="me-1" />
-                  Active Deliveries {activeDeliveries?.length > 0 && `(${activeDeliveries.length})`}
-                </Nav.Link>
-              </Nav.Item>
-              <Nav.Item>
-                <Nav.Link eventKey="completed">
-                  <FaHistory className="me-1" />
-                  Completed Deliveries
-                </Nav.Link>
-              </Nav.Item>
-            </Nav>
-          </Col>
-        </Row>
+      <Row className="mb-3">
+        <Col>
+          <div className="simple-tabs">
+            <div 
+              className={`simple-tab ${activeTab === 'available' ? 'active' : ''}`}
+              onClick={() => setActiveTab('available')}
+              role="button"
+              tabIndex={0}
+              aria-label="Show available orders"
+            >
+              <FaClipboardList className="me-2" />
+              Available Orders {availableOrders?.length > 0 && `(${availableOrders.length})`}
+            </div>
+            <div 
+              className={`simple-tab ${activeTab === 'active' ? 'active' : ''}`}
+              onClick={() => setActiveTab('active')}
+              role="button"
+              tabIndex={0}
+              aria-label="Show active deliveries"
+            >
+              <FaRoute className="me-2" />
+              Active Deliveries {activeDeliveries?.length > 0 && `(${activeDeliveries.length})`}
+            </div>
+            <div 
+              className={`simple-tab ${activeTab === 'completed' ? 'active' : ''}`}
+              onClick={() => setActiveTab('completed')}
+              role="button"
+              tabIndex={0}
+              aria-label="Show completed deliveries"
+            >
+              <FaHistory className="me-2" />
+              Completed Deliveries
+            </div>
+          </div>
+        </Col>
+      </Row>
 
-        <Row>
-          <Col>
-            <Tab.Content>
-              <Tab.Pane eventKey="available">
-                {console.log('Rendering available orders tab, orders:', availableOrders)}
-                {!availableOrders || availableOrders.length === 0 ? (
-                  <Alert variant="info">
-                    No available orders at the moment. Check back later!
-                  </Alert>
-                ) : (
-                  availableOrders.map(order => (
-                    <RideRequestCard
-                      key={order.orderId}
-                      request={order}
-                      onAccept={handleAcceptOrder}
-                      onDecline={handleDeclineOrder}
-                    />
-                  ))
-                )}
-              </Tab.Pane>
+      <Row>
+        <Col>
+          {activeTab === 'available' && (
+            <>
+              {console.log('Rendering available orders tab, orders:', availableOrders)}
+              {!availableOrders || availableOrders.length === 0 ? (
+                <Alert variant="info">
+                  No available orders at the moment. Check back later!
+                </Alert>
+              ) : (
+                availableOrders.map(order => (
+                  <RideRequestCard
+                    key={order.orderId}
+                    request={order}
+                    onAccept={handleAcceptOrder}
+                    onDecline={handleDeclineOrder}
+                  />
+                ))
+              )}
+            </>
+          )}
 
-              <Tab.Pane eventKey="active">
-                {!activeDeliveries || activeDeliveries.length === 0 ? (
-                  <Alert variant="info">
-                    You don't have any active deliveries. Accept an order to get started!
-                  </Alert>
-                ) : (
-                  activeDeliveries.map(delivery => (
-                    <ActiveDeliveryCard
-                      key={delivery.orderId}
-                      delivery={delivery}
-                      onUpdateStatus={handleUpdateDeliveryStatus}
-                    />
-                  ))
-                )}
-              </Tab.Pane>
+          {activeTab === 'active' && (
+            <>
+              {!activeDeliveries || activeDeliveries.length === 0 ? (
+                <Alert variant="info">
+                  You don't have any active deliveries. Accept an order to get started!
+                </Alert>
+              ) : (
+                activeDeliveries.map(delivery => (
+                  <ActiveDeliveryCard
+                    key={delivery.orderId}
+                    delivery={delivery}
+                    onUpdateStatus={handleUpdateDeliveryStatus}
+                  />
+                ))
+              )}
+            </>
+          )}
 
-              <Tab.Pane eventKey="completed">
-                {!completedDeliveries || completedDeliveries.length === 0 ? (
-                  <Alert variant="info">
-                    You haven't completed any deliveries yet.
-                  </Alert>
-                ) : (
-                  <Card>
-                    <Card.Body>
-                      <Table responsive>
-                        <thead>
-                          <tr>
-                            <th>Order ID</th>
-                            <th>Date</th>
-                            <th>Customer</th>
-                            <th>Pickup</th>
-                            <th>Destination</th>
-                            <th>Status</th>
-                            <th>Amount</th>
+          {activeTab === 'completed' && (
+            <>
+              {!completedDeliveries || completedDeliveries.length === 0 ? (
+                <Alert variant="info">
+                  You haven't completed any deliveries yet.
+                </Alert>
+              ) : (
+                <Card>
+                  <Card.Body>
+                    <Table responsive>
+                      <thead>
+                        <tr>
+                          <th>Order ID</th>
+                          <th>Date</th>
+                          <th>Customer</th>
+                          <th>Pickup</th>
+                          <th>Destination</th>
+                          <th>Status</th>
+                          <th>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {completedDeliveries.map(delivery => (
+                          <tr key={delivery.orderId}>
+                            <td>{delivery.orderId.substring(0, 8)}...</td>
+                            <td>{new Date(delivery.completedAt || delivery.updatedAt || delivery.createdAt).toLocaleDateString()}</td>
+                            <td>{delivery.customerName || 'N/A'}</td>
+                            <td>{delivery.pickupAddress?.substring(0, 15) || 'N/A'}...</td>
+                            <td>{delivery.destinationAddress?.substring(0, 15) || 'N/A'}...</td>
+                            <td>
+                              <Badge bg={
+                                delivery.status === 'delivered' ? 'success' :
+                                delivery.status === 'failed_delivery' ? 'danger' :
+                                'secondary'
+                              }>
+                                {delivery.status}
+                              </Badge>
+                            </td>
+                            <td>₹{delivery.amount || 'N/A'}</td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {completedDeliveries.map(delivery => (
-                            <tr key={delivery.orderId}>
-                              <td>#{delivery.orderId?.substring(0, 8) || 'N/A'}</td>
-                              <td>{delivery.completedAt || delivery.updatedAt ? new Date(delivery.completedAt || delivery.updatedAt).toLocaleDateString() : 'N/A'}</td>
-                              <td>{delivery.customerName || 'N/A'}</td>
-                              <td>{delivery.pickupAddress || 'N/A'}</td>
-                              <td>{delivery.destinationAddress || 'N/A'}</td>
-                              <td>
-                                <Badge bg={delivery.status === 'delivered' ? 'success' : 'danger'}>
-                                  {delivery.status === 'delivered' ? 'Delivered' : 'Failed'}
-                                </Badge>
-                              </td>
-                              <td>₹{delivery.amount || 'N/A'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </Table>
-                    </Card.Body>
-                  </Card>
-                )}
-              </Tab.Pane>
-            </Tab.Content>
-          </Col>
-        </Row>
-      </Tab.Container>
+                        ))}
+                      </tbody>
+                    </Table>
+                  </Card.Body>
+                </Card>
+              )}
+            </>
+          )}
+        </Col>
+      </Row>
+
+      <style jsx global>{`
+        .simple-tabs {
+          display: flex;
+          overflow-x: auto;
+          background-color: #f8f9fa;
+          border-radius: 10px;
+          padding: 5px;
+        }
+        
+        .simple-tab {
+          padding: 12px 16px;
+          cursor: pointer;
+          white-space: nowrap;
+          display: flex;
+          align-items: center;
+          border-radius: 8px;
+          margin: 0 5px;
+          transition: all 0.3s ease;
+        }
+        
+        .simple-tab.active {
+          background-color: #007bff;
+          color: white;
+        }
+        
+        @media (max-width: 768px) {
+          .simple-tabs {
+            flex-wrap: wrap;
+          }
+          
+          .simple-tab {
+            flex: 1 1 40%;
+            margin: 5px;
+            justify-content: center;
+          }
+        }
+      `}</style>
     </Container>
   );
 } 

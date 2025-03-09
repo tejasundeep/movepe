@@ -15,11 +15,35 @@ export async function POST(request) {
     const riderEmail = session.user.email;
 
     // Get request body
-    const body = await request.json();
-    const { location } = body;
+    let body;
+    try {
+      body = await request.json();
+    } catch (error) {
+      console.error('Error parsing request body:', error);
+      return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 });
+    }
 
-    if (!location || !location.lat || !location.lon) {
-      return NextResponse.json({ error: 'Location data is required' }, { status: 400 });
+    const { location, riderId } = body;
+
+    // Validate location data
+    if (!location || typeof location !== 'object') {
+      return NextResponse.json({ error: 'Location data is required and must be an object' }, { status: 400 });
+    }
+
+    if (!location.lat || !location.lon) {
+      return NextResponse.json({ error: 'Location must include lat and lon coordinates' }, { status: 400 });
+    }
+
+    // Validate coordinate values
+    const lat = parseFloat(location.lat);
+    const lon = parseFloat(location.lon);
+    
+    if (isNaN(lat) || isNaN(lon)) {
+      return NextResponse.json({ error: 'Coordinates must be valid numbers' }, { status: 400 });
+    }
+    
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      return NextResponse.json({ error: 'Coordinates out of valid range' }, { status: 400 });
     }
 
     // Get rider details
@@ -28,18 +52,40 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Rider not found' }, { status: 404 });
     }
 
+    // Verify riderId if provided
+    if (riderId && riderId !== rider.riderId && riderId !== rider.id) {
+      return NextResponse.json({ error: 'Unauthorized to update this rider location' }, { status: 403 });
+    }
+
     // Update rider location
     const updatedLocation = {
-      lat: location.lat.toString(),
-      lon: location.lon.toString(),
+      lat: lat.toString(),
+      lon: lon.toString(),
       lastUpdated: new Date().toISOString()
     };
 
-    await riderService.updateRiderLocation(rider.riderId, updatedLocation);
+    // Add accuracy if provided
+    if (location.accuracy) {
+      const accuracy = parseFloat(location.accuracy);
+      if (!isNaN(accuracy) && accuracy > 0) {
+        updatedLocation.accuracy = accuracy.toString();
+      }
+    }
+
+    try {
+      await riderService.updateRiderLocation(rider.riderId, updatedLocation);
+    } catch (updateError) {
+      console.error('Error in riderService.updateRiderLocation:', updateError);
+      return NextResponse.json(
+        { error: updateError.message || 'Failed to update location in database' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Location updated successfully'
+      message: 'Location updated successfully',
+      location: updatedLocation
     });
   } catch (error) {
     console.error('Error updating rider location:', error);

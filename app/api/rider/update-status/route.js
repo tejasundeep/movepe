@@ -17,40 +17,106 @@ export async function POST(request) {
     const riderEmail = session.user.email;
 
     // Get request body
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (error) {
+      console.error('Error parsing request body:', error);
+      return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 });
+    }
+
     const { orderId, status, notes } = body;
 
-    if (!orderId || !status) {
-      return NextResponse.json({ error: 'Order ID and status are required' }, { status: 400 });
+    // Validate required fields
+    if (!orderId) {
+      return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
+    }
+
+    if (!status) {
+      return NextResponse.json({ error: 'Status is required' }, { status: 400 });
+    }
+
+    // Validate status value
+    const validStatuses = ['accepted', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'failed_delivery', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json({ 
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` 
+      }, { status: 400 });
     }
 
     // Get rider details
-    const rider = await riderService.getRiderByEmail(riderEmail);
-    if (!rider) {
-      return NextResponse.json({ error: 'Rider not found' }, { status: 404 });
+    let rider;
+    try {
+      rider = await riderService.getRiderByEmail(riderEmail);
+      if (!rider) {
+        return NextResponse.json({ error: 'Rider not found' }, { status: 404 });
+      }
+    } catch (error) {
+      console.error('Error fetching rider details:', error);
+      return NextResponse.json({ error: 'Failed to fetch rider details' }, { status: 500 });
     }
 
     // Get order details
-    const order = await orderService.getOrderById(orderId);
-    if (!order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    let order;
+    try {
+      order = await orderService.getOrderById(orderId);
+      if (!order) {
+        return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      }
+    } catch (error) {
+      console.error('Error fetching order details:', error);
+      return NextResponse.json({ error: 'Failed to fetch order details' }, { status: 500 });
     }
 
     // Check if this rider is assigned to this order
-    if (order.riderId !== rider.riderId) {
+    // Check both riderId and assignedRiderId fields for compatibility
+    if (order.riderId !== rider.riderId && order.assignedRiderId !== rider.riderId) {
       return NextResponse.json({ error: 'You are not assigned to this order' }, { status: 403 });
     }
 
+    // Validate status transition
+    const currentStatus = order.status;
+    const validTransitions = {
+      'accepted': ['picked_up', 'cancelled'],
+      'picked_up': ['in_transit', 'cancelled'],
+      'in_transit': ['out_for_delivery', 'cancelled'],
+      'out_for_delivery': ['delivered', 'failed_delivery', 'cancelled'],
+      'delivered': [], // Terminal state
+      'failed_delivery': [], // Terminal state
+      'cancelled': [] // Terminal state
+    };
+
+    // If the order is in a different format (e.g., 'Rider Assigned'), allow accepting it
+    if (!validTransitions[currentStatus] && status === 'accepted') {
+      // Allow accepting orders that don't have a standard status yet
+    } else if (validTransitions[currentStatus] && !validTransitions[currentStatus].includes(status)) {
+      return NextResponse.json({ 
+        error: `Cannot transition from '${currentStatus}' to '${status}'` 
+      }, { status: 400 });
+    }
+
     // Update order status
-    const updatedOrder = await orderService.updateOrderStatus(orderId, status, notes);
+    let updatedOrder;
+    try {
+      updatedOrder = await orderService.updateOrderStatus(orderId, status, notes);
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      return NextResponse.json({ error: 'Failed to update order status' }, { status: 500 });
+    }
 
     // If delivery is completed or failed, update rider status to available
     if (status === 'delivered' || status === 'failed_delivery' || status === 'cancelled') {
-      await riderService.updateRiderStatus(rider.riderId, 'available');
+      try {
+        await riderService.updateRiderStatus(rider.riderId, 'available');
+      } catch (error) {
+        console.error('Error updating rider status:', error);
+        // Continue anyway, as the order status update was successful
+      }
     }
 
     // Send notification to customer
     const statusMessages = {
+      'accepted': 'Your order has been accepted by the rider',
       'picked_up': 'Your package has been picked up',
       'in_transit': 'Your package is in transit',
       'out_for_delivery': 'Your package is out for delivery',
@@ -59,17 +125,22 @@ export async function POST(request) {
       'cancelled': 'Delivery has been cancelled'
     };
 
-    await notificationService.sendNotification({
-      type: 'ORDER_UPDATE',
-      title: 'Order Status Update',
-      message: statusMessages[status] || `Order status updated to ${status}`,
-      recipientEmail: order.userEmail,
-      data: {
-        orderId: order.orderId,
-        status,
-        notes
-      }
-    });
+    try {
+      await notificationService.sendNotification({
+        type: 'ORDER_UPDATE',
+        title: 'Order Status Update',
+        message: statusMessages[status] || `Order status updated to ${status}`,
+        recipientEmail: order.userEmail,
+        data: {
+          orderId: order.orderId,
+          status,
+          notes: notes || ''
+        }
+      });
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      // Continue anyway, as the order status update was successful
+    }
 
     return NextResponse.json({
       success: true,
