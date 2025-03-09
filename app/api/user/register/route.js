@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server'
 import { userService } from '../../../../lib/services/userService'
 import { withRateLimit } from '../../../../lib/middleware/rateLimitMiddleware'

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../../lib/auth';
-import { clearPricingCache, getCacheStats } from '../../../lib/services/pricingService';
+import { authOptions } from '../../../../lib/auth';
+import { clearPricingCache, getCacheStats } from '../../../../lib/services/pricingService';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * GET handler for retrieving cache statistics

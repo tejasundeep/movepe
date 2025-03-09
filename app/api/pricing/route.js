@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { calculateMovingCost, getQuickEstimate, getAvailableMoveSizes, getCostFactors, getDetailedEstimate } from '../../../lib/services/pricingService';
 

@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { orderService } from '../../../../../lib/services/orderService'
 import { withRateLimit } from '../../../../../lib/middleware/rateLimitMiddleware'
-import { authOptions } from '../../../../lib/auth'
+import { authOptions } from '../../../../../lib/auth'
+
+export const dynamic = 'force-dynamic'
 
 async function cancelOrder(request, { params }) {
   try {

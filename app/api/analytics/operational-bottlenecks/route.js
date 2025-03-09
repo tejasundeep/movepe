@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { operationalAnalyticsService } from '../../../../lib/services/operationalAnalyticsService';
 import { getServerSession } from 'next-auth';

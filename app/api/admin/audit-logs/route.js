@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { auditService } from '../../../../lib/services/auditService';
 import { withAdminApiMiddleware } from '../../../../lib/middleware/adminApiMiddleware';

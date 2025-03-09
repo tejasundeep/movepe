@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server'
 import { orderService } from '../../../lib/services/orderService'
 import { vendorService } from '../../../lib/services/vendorService'

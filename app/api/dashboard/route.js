@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/auth';
-import { analyticsService } from '../../lib/services/analyticsService';
-import { storage } from '../../lib/storage';
-import { withRateLimit } from '../../lib/middleware/rateLimitMiddleware';
+import { analyticsService } from '../../../lib/services/analyticsService';
+import { storage } from '../../../lib/storage';
+import { withRateLimit } from '../../../lib/middleware/rateLimitMiddleware';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/dashboard

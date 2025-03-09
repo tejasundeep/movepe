@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Container, Row, Col, Form, Button, Card, Spinner, Alert, Nav } from 'react-bootstrap';
 import { formatCurrency } from '../../lib/utils';
@@ -10,7 +10,7 @@ import VisualPriceBreakdown from '../../components/VisualPriceBreakdown';
 import PriceJustificationCard from '../../components/PriceJustificationCard';
 import { FaInfoCircle, FaChartBar } from 'react-icons/fa';
 
-export default function DetailedQuotePage() {
+function QuotePageContent() {
   const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     fromZip: searchParams.get('from') || '',
@@ -764,5 +764,13 @@ export default function DetailedQuotePage() {
         formData={formData}
       />
     </Container>
+  );
+}
+
+export default function DetailedQuotePage() {
+  return (
+    <Suspense fallback={<div className="text-center p-5"><Spinner animation="border" /></div>}>
+      <QuotePageContent />
+    </Suspense>
   );
 } 

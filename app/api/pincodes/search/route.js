@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server'
 import pincodes from '../../../../data/pincodes.json'
 import { withRateLimit } from '../../../../lib/middleware/rateLimitMiddleware'

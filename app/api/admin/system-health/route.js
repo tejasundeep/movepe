@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { systemHealthService } from '../../../../lib/services/systemHealthService';
 import { withAdminApiMiddleware } from '../../../../lib/middleware/adminApiMiddleware';
