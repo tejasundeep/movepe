@@ -3,8 +3,9 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../../../../../../lib/auth'
-import { storage } from '../../../../../../lib/storage'
+import { storage, vendorStorage } from '../../../../../../lib/storage'
 import { orderService } from '../../../../../../lib/services/orderService'
+import { vendorService } from '../../../../../../lib/services/vendorService'
 import { withRateLimit } from '../../../../../../lib/middleware/rateLimitMiddleware'
 
 async function acceptOrder(request, { params }) {
@@ -19,17 +20,9 @@ async function acceptOrder(request, { params }) {
 
     const { orderId } = params
 
-    // Get vendor details
-    const vendors = await storage.readData('vendors.json')
-    if (!vendors) {
-      return NextResponse.json(
-        { error: 'Failed to read vendors data' },
-        { status: 500 }
-      )
-    }
-    
-    const vendor = vendors.find(v => v && v.email === session.user.email)
-    if (!vendor || !vendor.vendorId) {
+    // Get vendor details using Prisma
+    const vendor = await vendorService.getVendorByEmail(session.user.email)
+    if (!vendor) {
       return NextResponse.json(
         { error: 'Vendor not found' },
         { status: 404 }
@@ -37,7 +30,7 @@ async function acceptOrder(request, { params }) {
     }
 
     // Accept the order using the order service
-    const updatedOrder = await orderService.acceptOrder(orderId, vendor.vendorId)
+    const updatedOrder = await orderService.acceptOrder(orderId, vendor.id)
 
     return NextResponse.json({
       success: true,

@@ -3,8 +3,9 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../../../../../../lib/auth'
-import { storage } from '../../../../../../lib/storage'
+import { storage, vendorStorage } from '../../../../../../lib/storage'
 import { orderService } from '../../../../../../lib/services/orderService'
+import { vendorService } from '../../../../../../lib/services/vendorService'
 import { withRateLimit } from '../../../../../../lib/middleware/rateLimitMiddleware'
 
 async function updateOrderStatus(request, { params }) {
@@ -30,16 +31,8 @@ async function updateOrderStatus(request, { params }) {
       )
     }
 
-    // Get vendor details
-    const vendors = await storage.readData('vendors.json')
-    if (!vendors) {
-      return NextResponse.json(
-        { error: 'Failed to read vendors data' },
-        { status: 500 }
-      )
-    }
-    
-    const vendor = vendors.find(v => v.email === session.user.email)
+    // Get vendor details using Prisma
+    const vendor = await vendorService.getVendorByEmail(session.user.email)
     if (!vendor) {
       return NextResponse.json(
         { error: 'Vendor not found' },
@@ -65,7 +58,7 @@ async function updateOrderStatus(request, { params }) {
     // Update order status using the order service with validation
     const updatedOrder = await orderService.updateOrderStatus(
       orderId, 
-      vendor.vendorId, 
+      vendor.id, 
       status,
       !!forceUpdate // Convert to boolean
     )

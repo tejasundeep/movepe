@@ -1,21 +1,9 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { storage } from '../../../../lib/storage';
+import { notificationStorage } from '../../../../lib/storage';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../../lib/auth';
-import fs from 'fs/promises';
-import path from 'path';
-
-// Ensure data directory exists
-const ensureDataDirectory = async () => {
-  const dataPath = process.env.DATA_PATH || path.join(process.cwd(), 'data');
-  try {
-    await fs.mkdir(dataPath, { recursive: true });
-  } catch (error) {
-    console.error('Error creating data directory:', error);
-  }
-};
 
 // GET all notifications
 export async function GET(request) {
@@ -31,43 +19,46 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
-    // Ensure data directory exists
-    await ensureDataDirectory();
-
-    // Try to get notifications from storage
-    let notifications;
-    try {
-      notifications = await storage.readData('notifications.json');
-    } catch (error) {
-      console.warn('Notifications file not found, creating empty array');
-      notifications = [];
-      
-      // Create empty notifications file
-      try {
-        await storage.writeData('notifications.json', []);
-      } catch (writeError) {
-        console.error('Error creating notifications file:', writeError);
-        // Continue with empty array even if saving fails
+    // Get query parameters for filtering
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const type = searchParams.get('type');
+    const status = searchParams.get('status');
+    const userEmail = searchParams.get('userEmail');
+    
+    // Get notifications from storage
+    const notifications = await notificationStorage.getAll({
+      page,
+      limit,
+      type,
+      status,
+      userEmail
+    });
+    
+    // Get total count for pagination
+    const totalCount = await notificationStorage.getCount({
+      type,
+      status,
+      userEmail
+    });
+    
+    return NextResponse.json({
+      notifications,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit)
       }
-    }
-
-    // If notifications don't exist, use empty array
-    if (!notifications) {
-      notifications = [];
-    }
-
-    // Sort notifications by sent date (newest first)
-    notifications.sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
-
-    return NextResponse.json(notifications);
+    });
   } catch (error) {
     console.error('Error fetching notifications:', error);
-    // Return empty array if there's an error
-    return NextResponse.json([]);
+    return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 });
   }
 }
 
-// POST create a new notification (for testing purposes)
+// POST create a new notification
 export async function POST(request) {
   try {
     // Check if user is authenticated and is an admin
@@ -81,55 +72,25 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
-    // Ensure data directory exists
-    await ensureDataDirectory();
-
     // Get request body
     const notificationData = await request.json();
     
     // Validate required fields
-    if (!notificationData.type || !notificationData.recipient || !notificationData.recipientType) {
+    if (!notificationData.userId || !notificationData.title || !notificationData.message) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Get notifications from storage
-    let notifications;
-    try {
-      notifications = await storage.readData('notifications.json');
-    } catch (error) {
-      console.warn('Notifications file not found, creating empty array');
-      notifications = [];
-    }
-
-    // If notifications don't exist, use empty array
-    if (!notifications) {
-      notifications = [];
-    }
-
-    // Create new notification
-    const newNotification = {
-      id: `notif_${Date.now()}`,
-      type: notificationData.type,
-      recipient: notificationData.recipient,
-      recipientType: notificationData.recipientType,
-      subject: notificationData.subject || '',
-      message: notificationData.message || '',
-      eventType: notificationData.eventType || 'manual',
-      status: notificationData.status || 'pending',
-      sentAt: new Date().toISOString(),
-      metadata: notificationData.metadata || {}
-    };
-
-    // Add notification to storage
-    notifications.push(newNotification);
-    try {
-      await storage.writeData('notifications.json', notifications);
-    } catch (error) {
-      console.error('Error saving notification:', error);
-      return NextResponse.json({ error: 'Failed to save notification' }, { status: 500 });
-    }
+    // Create notification
+    const notification = await notificationStorage.create({
+      userId: notificationData.userId,
+      type: notificationData.type || 'system',
+      title: notificationData.title,
+      message: notificationData.message,
+      isRead: false,
+      data: notificationData.data || {}
+    });
     
-    return NextResponse.json(newNotification, { status: 201 });
+    return NextResponse.json(notification, { status: 201 });
   } catch (error) {
     console.error('Error creating notification:', error);
     return NextResponse.json({ error: 'Failed to create notification' }, { status: 500 });

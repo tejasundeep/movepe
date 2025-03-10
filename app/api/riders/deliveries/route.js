@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../../lib/auth';
 import { riderService } from '../../../../lib/services/riderService';
-import { storage } from '../../../../lib/storage';
+import { storage, orderStorage } from '../../../../lib/storage';
 import { withRateLimit } from '../../../../lib/middleware/rateLimitMiddleware';
 
 // GET /api/riders/deliveries - Get rider's assigned deliveries
@@ -23,14 +23,14 @@ async function getRiderDeliveries(request) {
       return NextResponse.json({ error: 'Rider not found' }, { status: 404 });
     }
 
-    // Get all orders
-    const orders = await storage.readData('orders.json') || [];
+    // Get all orders using Prisma
+    const orders = await orderStorage.getAll();
     
     // Filter orders assigned to this rider
     const assignedDeliveries = orders
       .filter(order => 
         order.orderType === 'parcel' && 
-        order.assignedRiderId === rider.riderId
+        order.riderId === rider.id
       )
       .sort((a, b) => {
         // Sort by status priority and then by date

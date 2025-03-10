@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/auth';
 import { analyticsService } from '../../../lib/services/analyticsService';
-import { storage } from '../../../lib/storage';
+import { orderStorage, vendorStorage, userStorage, inventoryStorage } from '../../../lib/storage';
 import { withRateLimit } from '../../../lib/middleware/rateLimitMiddleware';
 
 export const dynamic = 'force-dynamic';
@@ -41,35 +41,13 @@ async function getDashboard(request) {
       const notificationAnalytics = await getNotificationAnalyticsSummary(startDate, endDate);
       
       // Get recent orders
-      const orders = await storage.readData('orders.json') || [];
-      const recentOrders = orders
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, 10)
-        .map(order => ({
-          orderId: order.orderId,
-          userEmail: order.userEmail,
-          status: order.status,
-          createdAt: order.createdAt,
-          moveDate: order.moveDate,
-          moveSize: order.moveSize,
-          selectedVendorId: order.selectedVendorId,
-          payment: order.payment ? {
-            amount: order.payment.amount,
-            status: order.payment.status
-          } : null
-        }));
+      const recentOrders = await orderStorage.getRecentOrders(10);
       
       // Get pending vendor approvals
-      const vendors = await storage.readData('vendors.json') || [];
-      const pendingApprovals = vendors
-        .filter(v => v.status === 'Pending')
-        .map(vendor => ({
-          vendorId: vendor.vendorId,
-          name: vendor.name,
-          email: vendor.email,
-          phone: vendor.phone,
-          createdAt: vendor.createdAt
-        }));
+      const pendingApprovals = await vendorStorage.getPendingApprovals();
+      
+      // Get active orders count
+      const activeOrdersCount = await orderStorage.getActiveOrdersCount();
       
       return NextResponse.json({
         businessOverview,
@@ -83,23 +61,17 @@ async function getDashboard(request) {
         recentOrders,
         pendingApprovals,
         pendingApprovalsCount: pendingApprovals.length,
-        activeOrdersCount: orders.filter(o => 
-          o.status === 'Paid' || 
-          o.status === 'In Progress' || 
-          o.status === 'In Transit' || 
-          o.status === 'Delivered'
-        ).length
+        activeOrdersCount
       });
     } else if (session.user?.role === 'vendor') {
       // Get vendor dashboard data
-      const vendors = await storage.readData('vendors.json');
-      const vendor = vendors.find(v => v.email === session.user.email);
+      const vendor = await vendorStorage.getByEmail(session.user.email);
       
       if (!vendor) {
         return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
       }
       
-      const vendorId = vendor.vendorId;
+      const vendorId = vendor.id;
       const vendorPerformance = await analyticsService.getVendorPerformanceMetrics(vendorId);
       const vendorOrders = await analyticsService.getVendorOrders(vendorId, startDate, endDate);
       const vendorReviews = await analyticsService.getVendorReviews(vendorId);
@@ -119,8 +91,7 @@ async function getDashboard(request) {
       }
       
       // Get user orders
-      const orders = await storage.readData('orders.json') || [];
-      const userOrders = orders.filter(o => o.userEmail === userEmail);
+      const userOrders = await orderStorage.getByUserEmail(userEmail);
       
       // Get active orders
       const activeOrders = userOrders.filter(o => 
@@ -136,59 +107,47 @@ async function getDashboard(request) {
       );
       
       // Get recent orders
-      const recentOrders = userOrders
+      const recentOrders = [...userOrders]
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 5);
       
       // Get orders requiring inventory verification
-      const ordersNeedingVerification = userOrders.filter(o => {
-        if (o.status !== 'Delivered') return false;
+      const ordersNeedingVerification = [];
+      for (const order of userOrders) {
+        if (order.status !== 'Delivered') continue;
         
         // Check if inventory exists and needs verification
-        const inventories = storage.readData('inventories.json') || [];
-        const inventory = inventories.find(inv => inv.orderId === o.orderId);
-        return inventory && inventory.status !== 'Verified';
-      });
+        const inventory = await inventoryStorage.getByOrderId(order.id);
+        if (inventory && inventory.status !== 'Verified') {
+          ordersNeedingVerification.push(order);
+        }
+      }
+      
+      // Get pending quotes
+      const pendingQuotes = userOrders.filter(o => 
+        o.status === 'QuoteRequested' && 
+        (o.quotes && o.quotes.length > 0)
+      );
       
       return NextResponse.json({
-        userInfo: {
-          email: userEmail,
+        activeOrders,
+        completedOrders,
+        recentOrders,
+        ordersNeedingVerification,
+        pendingQuotes,
+        stats: {
           totalOrders: userOrders.length,
-          activeOrdersCount: activeOrders.length,
-          completedOrdersCount: completedOrders.length
-        },
-        activeOrders: activeOrders.map(order => ({
-          orderId: order.orderId,
-          status: order.status,
-          createdAt: order.createdAt,
-          moveDate: order.moveDate,
-          moveSize: order.moveSize,
-          pickupPincode: order.pickupPincode,
-          destinationPincode: order.destinationPincode,
-          selectedVendorName: order.selectedVendorName
-        })),
-        recentOrders: recentOrders.map(order => ({
-          orderId: order.orderId,
-          status: order.status,
-          createdAt: order.createdAt,
-          moveDate: order.moveDate,
-          moveSize: order.moveSize,
-          pickupPincode: order.pickupPincode,
-          destinationPincode: order.destinationPincode,
-          selectedVendorName: order.selectedVendorName
-        })),
-        ordersNeedingVerification: ordersNeedingVerification.map(order => ({
-          orderId: order.orderId,
-          moveDate: order.moveDate,
-          deliveryDate: order.deliveryDate || order.moveDate,
-          selectedVendorName: order.selectedVendorName
-        }))
+          activeOrders: activeOrders.length,
+          completedOrders: completedOrders.length,
+          pendingQuotes: pendingQuotes.length,
+          ordersNeedingVerification: ordersNeedingVerification.length
+        }
       });
     }
   } catch (error) {
-    console.error('Error fetching dashboard data:', error);
+    console.error('Error in dashboard API:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch dashboard data' },
+      { error: error.message || 'Failed to fetch dashboard data' },
       { status: 500 }
     );
   }
@@ -205,28 +164,18 @@ export const GET = withRateLimit(getDashboard, 'analytics');
  */
 async function getNotificationAnalyticsSummary(startDate, endDate) {
   try {
-    // Read analytics events
-    const events = await storage.readData('analytics_events.json') || [];
+    // Get notification events from analytics service
+    const notificationEvents = await analyticsService.getNotificationEvents(startDate, endDate);
     
-    // Filter notification events
-    let notificationEvents = events.filter(event => 
-      event.eventType === 'notification_sent'
-    );
-    
-    // Apply date filters if provided
-    if (startDate) {
-      const start = new Date(startDate);
-      notificationEvents = notificationEvents.filter(event => 
-        new Date(event.timestamp) >= start
-      );
-    }
-    
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999); // End of day
-      notificationEvents = notificationEvents.filter(event => 
-        new Date(event.timestamp) <= end
-      );
+    if (!notificationEvents || notificationEvents.length === 0) {
+      return {
+        totalNotifications: 0,
+        recentNotifications: 0,
+        dailyAverage: 0,
+        topNotificationTypes: [],
+        channelDistribution: [],
+        recipientDistribution: []
+      };
     }
     
     // Group by notification type

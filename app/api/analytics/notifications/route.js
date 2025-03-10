@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
-import { storage } from '../../../../lib/storage';
+import { analyticsService } from '../../../../lib/services/analyticsService';
 import { withRateLimit } from '../../../../lib/middleware/rateLimitMiddleware';
 
 /**
@@ -32,49 +32,28 @@ async function getNotificationAnalytics(request) {
     const channel = searchParams.get('channel');
     const recipientType = searchParams.get('recipientType');
 
-    // Read analytics events
-    const events = await storage.readData('analytics_events.json') || [];
-    
-    // Filter notification events
-    let notificationEvents = events.filter(event => 
-      event.eventType === 'notification_sent'
+    // Get notification events from analytics service
+    const notificationEvents = await analyticsService.getNotificationEvents(
+      startDate, 
+      endDate, 
+      type, 
+      channel, 
+      recipientType
     );
     
-    // Apply date filters if provided
-    if (startDate) {
-      const start = new Date(startDate);
-      notificationEvents = notificationEvents.filter(event => 
-        new Date(event.timestamp) >= start
-      );
-    }
-    
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999); // End of day
-      notificationEvents = notificationEvents.filter(event => 
-        new Date(event.timestamp) <= end
-      );
-    }
-    
-    // Apply type filter if provided
-    if (type) {
-      notificationEvents = notificationEvents.filter(event => 
-        event.eventData.notificationType === type
-      );
-    }
-    
-    // Apply channel filter if provided
-    if (channel) {
-      notificationEvents = notificationEvents.filter(event => 
-        event.eventData.channel === channel
-      );
-    }
-    
-    // Apply recipient type filter if provided
-    if (recipientType) {
-      notificationEvents = notificationEvents.filter(event => 
-        event.eventData.recipientType === recipientType
-      );
+    if (!notificationEvents || notificationEvents.length === 0) {
+      return NextResponse.json({
+        totalNotifications: 0,
+        byNotificationType: {},
+        byChannel: {},
+        byRecipientType: {},
+        byDate: {},
+        deliveryStats: {
+          success: 0,
+          failure: 0,
+          successRate: 0
+        }
+      });
     }
     
     // Group by notification type, channel, and recipient type
@@ -102,42 +81,79 @@ async function getNotificationAnalytics(request) {
       byRecipientType[recipientType].push(event);
     });
     
-    // Calculate statistics
-    const totalNotifications = notificationEvents.length;
-    const notificationTypeStats = Object.entries(byNotificationType).map(([type, events]) => ({
-      type,
-      count: events.length,
-      percentage: ((events.length / totalNotifications) * 100).toFixed(2)
-    }));
+    // Group by date for time series
+    const byDate = {};
+    notificationEvents.forEach(event => {
+      const date = new Date(event.timestamp).toISOString().split('T')[0];
+      if (!byDate[date]) {
+        byDate[date] = [];
+      }
+      byDate[date].push(event);
+    });
     
-    const channelStats = Object.entries(byChannel).map(([channel, events]) => ({
-      channel,
-      count: events.length,
-      percentage: ((events.length / totalNotifications) * 100).toFixed(2)
-    }));
+    // Calculate delivery statistics
+    const successCount = notificationEvents.filter(event => 
+      event.eventData.status === 'success'
+    ).length;
     
-    const recipientTypeStats = Object.entries(byRecipientType).map(([type, events]) => ({
-      type,
-      count: events.length,
-      percentage: ((events.length / totalNotifications) * 100).toFixed(2)
-    }));
+    const failureCount = notificationEvents.filter(event => 
+      event.eventData.status === 'failure'
+    ).length;
     
-    // Create response
+    const successRate = notificationEvents.length > 0 
+      ? (successCount / notificationEvents.length) * 100 
+      : 0;
+    
+    // Format response
     const response = {
-      totalNotifications,
-      byNotificationType: notificationTypeStats.sort((a, b) => b.count - a.count),
-      byChannel: channelStats.sort((a, b) => b.count - a.count),
-      byRecipientType: recipientTypeStats.sort((a, b) => b.count - a.count),
-      // Include the first 100 events for detailed analysis
-      recentEvents: notificationEvents
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .slice(0, 100)
+      totalNotifications: notificationEvents.length,
+      byNotificationType: Object.fromEntries(
+        Object.entries(byNotificationType).map(([type, events]) => [
+          type,
+          {
+            count: events.length,
+            percentage: (events.length / notificationEvents.length * 100).toFixed(2)
+          }
+        ])
+      ),
+      byChannel: Object.fromEntries(
+        Object.entries(byChannel).map(([channel, events]) => [
+          channel,
+          {
+            count: events.length,
+            percentage: (events.length / notificationEvents.length * 100).toFixed(2)
+          }
+        ])
+      ),
+      byRecipientType: Object.fromEntries(
+        Object.entries(byRecipientType).map(([type, events]) => [
+          type,
+          {
+            count: events.length,
+            percentage: (events.length / notificationEvents.length * 100).toFixed(2)
+          }
+        ])
+      ),
+      byDate: Object.fromEntries(
+        Object.entries(byDate).map(([date, events]) => [
+          date,
+          events.length
+        ])
+      ),
+      deliveryStats: {
+        success: successCount,
+        failure: failureCount,
+        successRate: successRate.toFixed(2)
+      }
     };
     
     return NextResponse.json(response);
   } catch (error) {
     console.error('Error fetching notification analytics:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch notification analytics' },
+      { status: 500 }
+    );
   }
 }
 

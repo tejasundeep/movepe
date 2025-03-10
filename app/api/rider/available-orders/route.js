@@ -32,7 +32,7 @@ export async function GET(request) {
     }
 
     // Get available orders based on rider's service areas
-    const availableOrders = await orderService.getAvailableOrdersForRider(rider.riderId, rider.serviceAreas);
+    const availableOrders = await orderService.getAvailableOrdersForRider(rider.id, rider.serviceAreas);
 
     return NextResponse.json({
       success: true,

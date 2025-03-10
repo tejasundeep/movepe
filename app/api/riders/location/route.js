@@ -35,7 +35,7 @@ async function updateRiderLocation(request) {
     }
 
     // Update rider location
-    const updatedRider = await riderService.updateRiderLocation(rider.riderId, location);
+    const updatedRider = await riderService.updateRiderLocation(rider.id, location);
 
     return NextResponse.json({
       success: true,

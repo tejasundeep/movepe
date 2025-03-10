@@ -4,152 +4,99 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../../../lib/auth'
 import { reviewService } from '../../../lib/services/reviewService'
-import { storage } from '../../../lib/storage'
+import { vendorStorage } from '../../../lib/storage'
 import { withRateLimit } from '../../../lib/middleware/rateLimitMiddleware'
+import { prisma } from '../../../lib/prisma'
 
-// GET /api/reviews - Get reviews with pagination and filtering
+// GET /api/reviews - Get reviews with filtering options
 async function getReviews(request) {
   try {
+    // Get query parameters
     const { searchParams } = new URL(request.url)
-    const vendorId = searchParams.get('vendorId')
     const orderId = searchParams.get('orderId')
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '10')
-    
-    // New filter and sort parameters
-    const minRating = searchParams.get('minRating') ? parseInt(searchParams.get('minRating')) : null
-    const maxRating = searchParams.get('maxRating') ? parseInt(searchParams.get('maxRating')) : null
-    const sortBy = searchParams.get('sortBy') || 'createdAt'
-    const sortOrder = searchParams.get('sortOrder') || 'desc'
-    const startDate = searchParams.get('startDate')
-    const endDate = searchParams.get('endDate')
-    const trends = searchParams.get('trends') === 'true'
-    const stats = searchParams.get('stats') === 'true'
-    const timeframe = searchParams.get('timeframe') || 'monthly'
+    const userId = searchParams.get('userId')
+    const targetUserId = searchParams.get('targetUserId')
+    const minRating = searchParams.get('minRating') ? parseInt(searchParams.get('minRating'), 10) : undefined
+    const maxRating = searchParams.get('maxRating') ? parseInt(searchParams.get('maxRating'), 10) : undefined
+    const limit = parseInt(searchParams.get('limit') || '10', 10)
+    const offset = parseInt(searchParams.get('offset') || '0', 10)
 
-    // Validate parameters
-    if (vendorId && orderId) {
-      return NextResponse.json(
-        { error: 'Cannot specify both vendorId and orderId' },
-        { status: 400 }
-      )
-    }
+    // Build the query
+    const where = {}
+    if (orderId) where.orderId = orderId
+    if (userId) where.userId = userId
+    if (targetUserId) where.targetUserId = targetUserId
+    if (minRating !== undefined) where.rating = { ...where.rating, gte: minRating }
+    if (maxRating !== undefined) where.rating = { ...where.rating, lte: maxRating }
 
-    let reviews = []
-    let total = 0
-    let statsData = null
-    let trendsData = null
-
-    // Get reviews by vendor ID
-    if (vendorId) {
-      const vendor = await storage.readData('vendors.json')
-        .then(vendors => vendors.find(v => v.vendorId === vendorId))
-      
-      if (!vendor) {
-        return NextResponse.json(
-          { error: 'Vendor not found' },
-          { status: 404 }
-        )
-      }
-      
-      // Get reviews from vendor object
-      reviews = vendor.reviews || []
-      
-      // Apply filters
-      if (minRating) {
-        reviews = reviews.filter(review => review.rating >= minRating)
-      }
-      
-      if (maxRating) {
-        reviews = reviews.filter(review => review.rating <= maxRating)
-      }
-      
-      if (startDate) {
-        const startTimestamp = new Date(startDate).getTime()
-        reviews = reviews.filter(review => new Date(review.createdAt).getTime() >= startTimestamp)
-      }
-      
-      if (endDate) {
-        const endTimestamp = new Date(endDate).getTime()
-        reviews = reviews.filter(review => new Date(review.createdAt).getTime() <= endTimestamp)
-      }
-      
-      // Calculate total before pagination
-      total = reviews.length
-      
-      // Sort reviews
-      reviews.sort((a, b) => {
-        if (sortBy === 'rating') {
-          return sortOrder === 'asc' ? a.rating - b.rating : b.rating - a.rating
-        } else {
-          // Default sort by createdAt
-          return sortOrder === 'asc' 
-            ? new Date(a.createdAt) - new Date(b.createdAt)
-            : new Date(b.createdAt) - new Date(a.createdAt)
-        }
-      })
-      
-      // Generate stats if requested
-      if (stats) {
-        statsData = {
-          averageRating: reviews.length > 0 
-            ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-            : 0,
-          totalReviews: reviews.length,
-          ratingDistribution: {
-            1: reviews.filter(r => r.rating === 1).length,
-            2: reviews.filter(r => r.rating === 2).length,
-            3: reviews.filter(r => r.rating === 3).length,
-            4: reviews.filter(r => r.rating === 4).length,
-            5: reviews.filter(r => r.rating === 5).length
+    // Get reviews with pagination
+    const reviews = await prisma.review.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            profilePicture: true,
           },
-          responseRate: reviews.length > 0
-            ? (reviews.filter(r => r.vendorResponse).length / reviews.length) * 100
-            : 0
-        }
-      }
-      
-      // Generate trends if requested
-      if (trends) {
-        trendsData = reviewService.generateReviewTrends(reviews, timeframe)
-      }
-      
-      // Apply pagination
-      reviews = paginateArray(reviews, page, limit)
-    }
-    // Get review by order ID
-    else if (orderId) {
-      const orders = await storage.readData('orders.json')
-      const order = orders.find(o => o.orderId === orderId)
-      
-      if (!order) {
-        return NextResponse.json(
-          { error: 'Order not found' },
-          { status: 404 }
-        )
-      }
-      
-      if (order.review) {
-        reviews = [formatOrderReview(order)]
-        total = 1
-      } else {
-        reviews = []
-        total = 0
-      }
-    }
-    
+        },
+        targetUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            profilePicture: true,
+            role: true,
+          },
+        },
+        order: {
+          select: {
+            id: true,
+            orderNumber: true,
+            orderType: true,
+            createdAt: true,
+          },
+        },
+        criteria: true,
+        responses: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                profilePicture: true,
+                role: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      skip: offset,
+      take: limit,
+    })
+
+    // Get total count for pagination
+    const totalCount = await prisma.review.count({ where })
+
     return NextResponse.json({
+      success: true,
       reviews,
-      total,
-      page,
-      limit,
-      ...(statsData && { stats: statsData }),
-      ...(trendsData && { trends: trendsData })
+      pagination: {
+        total: totalCount,
+        limit,
+        offset,
+        hasMore: offset + reviews.length < totalCount,
+      },
     })
   } catch (error) {
-    console.error('Error fetching reviews:', error)
+    console.error('Error getting reviews:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch reviews' },
+      { error: error.message || 'Failed to get reviews' },
       { status: 500 }
     )
   }
@@ -179,138 +126,178 @@ function formatOrderReview(order) {
   }
 }
 
-// POST /api/reviews - Create a new review or add vendor response
+// POST /api/reviews - Create a new review
 async function createReview(request) {
-  // Check if this is a vendor response
-  const url = new URL(request.url);
-  const isVendorResponse = url.pathname.endsWith('/response');
-  
-  if (isVendorResponse) {
-    return handleVendorResponse(request);
-  }
-  
-  // If not a vendor response, handle as a regular review submission
   try {
+    // Check if user is authenticated
     const session = await getServerSession(authOptions)
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
+
+    // Parse request body
+    const body = await request.json()
+    const { orderId, targetUserId, rating, comment, criteria } = body
     
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: 'You must be logged in to submit a review' },
-        { status: 401 }
-      )
-    }
-
-    const { orderId, vendorId, rating, comment } = await request.json()
-
     // Validate required fields
-    if (!orderId || !vendorId) {
+    if (!orderId || !targetUserId || !rating) {
       return NextResponse.json(
-        { error: 'Order ID and Vendor ID are required' },
+        { error: 'Order ID, target user ID, and rating are required' },
         { status: 400 }
       )
     }
-
-    if (!rating || rating < 1 || rating > 5) {
+    
+    // Check if the order exists and belongs to the user
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+    })
+    
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+    
+    // Check if the user is authorized to review this order
+    if (order.customerId !== session.user.id && session.user.role !== 'admin') {
       return NextResponse.json(
-        { error: 'Rating must be between 1 and 5' },
-        { status: 400 }
+        { error: 'You are not authorized to review this order' },
+        { status: 403 }
       )
     }
-
-    try {
-      const result = await reviewService.addReview(
+    
+    // Check if the target user exists
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+    })
+    
+    if (!targetUser) {
+      return NextResponse.json({ error: 'Target user not found' }, { status: 404 })
+    }
+    
+    // Check if a review already exists for this order and target user
+    const existingReview = await prisma.review.findFirst({
+      where: {
         orderId,
-        vendorId,
-        rating,
-        comment || '',
-        session.user.email
-      );
-
-      return NextResponse.json({
-        reviewId: result.order.review.id,
-        orderId: result.order.orderId,
-        vendorId: result.order.selectedVendorId,
-        rating: result.order.review.rating,
-        comment: result.order.review.comment,
-        createdAt: result.order.review.createdAt,
-        userName: session.user.name || 'Anonymous',
-        orderDetails: {
-          orderNumber: result.order.orderNumber,
-        },
-      });
-    } catch (error) {
+        targetUserId,
+      },
+    })
+    
+    if (existingReview) {
       return NextResponse.json(
-        { error: error.message },
+        { error: 'A review already exists for this order and target user' },
         { status: 400 }
-      );
+      )
     }
+    
+    // Create the review
+    const review = await prisma.review.create({
+      data: {
+        orderId,
+        userId: session.user.id,
+        targetUserId,
+        rating,
+        comment,
+      },
+    })
+    
+    // Create review criteria if provided
+    if (criteria && Array.isArray(criteria) && criteria.length > 0) {
+      await prisma.reviewCriteria.createMany({
+        data: criteria.map(criterion => ({
+          reviewId: review.id,
+          name: criterion.name,
+          rating: criterion.rating,
+        })),
+      })
+    }
+    
+    // Update the target user's rating
+    if (targetUser.role === 'vendor') {
+      await updateVendorRating(targetUserId)
+    } else if (targetUser.role === 'rider') {
+      await updateRiderRating(targetUserId)
+    }
+    
+    return NextResponse.json({
+      success: true,
+      review: {
+        ...review,
+        criteria: criteria || [],
+      },
+    })
   } catch (error) {
     console.error('Error creating review:', error)
     return NextResponse.json(
-      { error: 'Failed to create review' },
+      { error: error.message || 'Failed to create review' },
       { status: 500 }
     )
   }
 }
 
-// Handler for vendor responses to reviews
-async function handleVendorResponse(request) {
+// Helper function to update vendor rating
+async function updateVendorRating(userId) {
   try {
-    const session = await getServerSession(authOptions)
+    // Get the vendor
+    const vendor = await prisma.vendor.findUnique({
+      where: { userId },
+    })
     
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: 'You must be logged in to respond to a review' },
-        { status: 401 }
-      )
-    }
-
-    const { reviewId, orderId, vendorId, responseText } = await request.json()
-
-    // Validate required fields
-    if (!reviewId || !orderId || !vendorId || !responseText) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
-    }
-
-    // Verify the user is the vendor
-    if (session.user.role !== 'vendor' || session.user.id !== vendorId) {
-      return NextResponse.json(
-        { error: 'You are not authorized to respond to this review' },
-        { status: 403 }
-      )
-    }
-
-    try {
-      const result = await reviewService.addVendorResponse(
-        reviewId,
-        orderId,
-        vendorId,
-        responseText
-      );
-
-      return NextResponse.json({
-        success: true,
-        reviewId,
-        orderId,
-        vendorId,
-        responseText,
-        responseDate: result.responseDate
-      });
-    } catch (error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      );
-    }
+    if (!vendor) return
+    
+    // Get all reviews for this vendor
+    const reviews = await prisma.review.findMany({
+      where: { targetUserId: userId },
+    })
+    
+    if (reviews.length === 0) return
+    
+    // Calculate average rating
+    const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0)
+    const averageRating = totalRating / reviews.length
+    
+    // Update vendor rating
+    await prisma.vendor.update({
+      where: { id: vendor.id },
+      data: {
+        rating: averageRating,
+        totalRatings: reviews.length,
+      },
+    })
   } catch (error) {
-    console.error('Error adding vendor response:', error)
-    return NextResponse.json(
-      { error: 'Failed to add response' },
-      { status: 500 }
-    )
+    console.error('Error updating vendor rating:', error)
+  }
+}
+
+// Helper function to update rider rating
+async function updateRiderRating(userId) {
+  try {
+    // Get the rider
+    const rider = await prisma.rider.findUnique({
+      where: { userId },
+    })
+    
+    if (!rider) return
+    
+    // Get all reviews for this rider
+    const reviews = await prisma.review.findMany({
+      where: { targetUserId: userId },
+    })
+    
+    if (reviews.length === 0) return
+    
+    // Calculate average rating
+    const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0)
+    const averageRating = totalRating / reviews.length
+    
+    // Update rider rating
+    await prisma.rider.update({
+      where: { id: rider.id },
+      data: {
+        rating: averageRating,
+        totalRatings: reviews.length,
+      },
+    })
+  } catch (error) {
+    console.error('Error updating rider rating:', error)
   }
 }
 
@@ -326,7 +313,7 @@ async function updateReview(request) {
       )
     }
 
-    const { reviewId, orderId, rating, comment } = await request.json()
+    const { reviewId, orderId, vendorId, rating, comment } = await request.json()
 
     // Validate required fields
     if (!reviewId || !orderId) {
@@ -347,22 +334,35 @@ async function updateReview(request) {
       const result = await reviewService.updateReview(
         reviewId,
         orderId,
-        session.user.email,
-        { rating, comment }
+        vendorId,
+        rating,
+        comment,
+        session.user.email
       );
 
       return NextResponse.json({
         success: true,
-        reviewId,
-        orderId,
-        rating: result.rating,
-        comment: result.comment,
-        updatedAt: result.updatedAt
+        message: 'Review updated successfully',
+        review: result
       });
     } catch (error) {
+      let status = 500;
+      let message = 'Failed to update review';
+      
+      if (error.message.includes('Review not found')) {
+        status = 404;
+        message = 'Review not found';
+      } else if (error.message.includes('Not authorized')) {
+        status = 403;
+        message = error.message;
+      } else if (error.message.includes('Cannot update')) {
+        status = 400;
+        message = error.message;
+      }
+      
       return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
+        { error: message },
+        { status }
       );
     }
   } catch (error) {
@@ -389,6 +389,7 @@ async function deleteReview(request) {
     const { searchParams } = new URL(request.url)
     const reviewId = searchParams.get('reviewId')
     const orderId = searchParams.get('orderId')
+    const vendorId = searchParams.get('vendorId')
 
     // Validate required fields
     if (!reviewId || !orderId) {
@@ -402,6 +403,7 @@ async function deleteReview(request) {
       await reviewService.deleteReview(
         reviewId,
         orderId,
+        vendorId,
         session.user.email
       );
 
@@ -410,9 +412,23 @@ async function deleteReview(request) {
         message: 'Review deleted successfully'
       });
     } catch (error) {
+      let status = 500;
+      let message = 'Failed to delete review';
+      
+      if (error.message.includes('Review not found')) {
+        status = 404;
+        message = 'Review not found';
+      } else if (error.message.includes('Not authorized')) {
+        status = 403;
+        message = error.message;
+      } else if (error.message.includes('Cannot delete')) {
+        status = 400;
+        message = error.message;
+      }
+      
       return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
+        { error: message },
+        { status }
       );
     }
   } catch (error) {
@@ -424,8 +440,8 @@ async function deleteReview(request) {
   }
 }
 
-// Apply rate limiting to all handlers
-export const GET = withRateLimit(getReviews, 'reviews');
-export const POST = withRateLimit(createReview, 'reviews');
-export const PUT = withRateLimit(updateReview, 'reviews');
-export const DELETE = withRateLimit(deleteReview, 'reviews'); 
+// Apply rate limiting to the handlers
+export const GET = withRateLimit(getReviews, { limit: 100, windowMs: 60000 })
+export const POST = withRateLimit(createReview, { limit: 20, windowMs: 60000 })
+export const PUT = withRateLimit(updateReview, 'reviews')
+export const DELETE = withRateLimit(deleteReview, 'reviews') 

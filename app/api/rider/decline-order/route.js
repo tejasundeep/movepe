@@ -43,7 +43,7 @@ export async function POST(request) {
     }
 
     // Record the decline in the system
-    await riderService.recordOrderDecline(rider.riderId, orderId, reason || 'No reason provided');
+    await riderService.recordOrderDecline(rider.id, orderId, reason || 'No reason provided');
 
     // Make the order available for other riders
     await orderService.makeOrderAvailableForRiders(orderId);

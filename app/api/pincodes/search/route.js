@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server'
-import pincodes from '../../../../data/pincodes.json'
+import { pincodeStorage } from '../../../../lib/storage'
 import { withRateLimit } from '../../../../lib/middleware/rateLimitMiddleware'
 
 async function searchPincodes(request) {
@@ -12,11 +12,8 @@ async function searchPincodes(request) {
     return NextResponse.json([])
   }
 
-  const filteredPincodes = pincodes.filter(pin => 
-    pin.pincode.includes(query) ||
-    pin.city.toLowerCase().includes(query.toLowerCase()) ||
-    pin.state.toLowerCase().includes(query.toLowerCase())
-  ).slice(0, 5) // Limit to 5 suggestions
+  // Search pincodes using the pincode storage
+  const filteredPincodes = await pincodeStorage.search(query, 5); // Limit to 5 suggestions
 
   return NextResponse.json(filteredPincodes)
 }

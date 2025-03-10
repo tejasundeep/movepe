@@ -31,14 +31,14 @@ async function createOrder(request) {
     
     // If we have recommended vendors, automatically request quotes from them
     if (recommendedVendors.length > 0) {
-      const vendorIds = recommendedVendors.map(vendor => vendor.vendorId)
-      await orderService.requestQuotes(newOrder.orderId, vendorIds, userEmail)
+      const vendorIds = recommendedVendors.map(vendor => vendor.id)
+      await orderService.requestQuotes(newOrder.id, vendorIds, userEmail)
     }
 
     return NextResponse.json({ 
-      orderId: newOrder.orderId,
+      orderId: newOrder.id,
       recommendedVendors: recommendedVendors.map(v => ({
-        vendorId: v.vendorId,
+        vendorId: v.id,
         name: v.name,
         rating: v.rating,
         matchScore: v.matchScore

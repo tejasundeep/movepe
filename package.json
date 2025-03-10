@@ -11,9 +11,12 @@
     "notification-report": "node scripts/notification-analytics-report.js",
     "create-test-notifications": "node scripts/create-test-notification.js",
     "test-pricing": "node scripts/test-pricing-service.js",
-    "enhance-status-history": "node scripts/enhance-order-status-history.js"
+    "enhance-status-history": "node scripts/enhance-order-status-history.js",
+    "migrate-to-prisma": "node scripts/migrate-to-prisma.js",
+    "prisma-studio": "npx prisma studio"
   },
   "dependencies": {
+    "@prisma/client": "^6.4.1",
     "@sendgrid/mail": "^8.1.4",
     "bcryptjs": "^3.0.2",
     "bootstrap": "^5.3.3",
@@ -21,6 +24,7 @@
     "next": "^14.1.0",
     "next-auth": "^4.24.11",
     "node-fetch": "^3.3.2",
+    "prisma": "^6.4.1",
     "razorpay": "^2.9.5",
     "react": "^18.3.1",
     "react-bootstrap": "^2.10.9",

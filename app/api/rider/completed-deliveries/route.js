@@ -24,7 +24,7 @@ export async function GET(request) {
     }
 
     // Get completed deliveries for this rider
-    const completedDeliveries = await orderService.getCompletedDeliveriesForRider(rider.riderId);
+    const completedDeliveries = await orderService.getCompletedDeliveriesForRider(rider.id);
 
     return NextResponse.json({
       success: true,

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, Table, Button, Form, InputGroup, Spinner, Alert, Badge, Dropdown, Tabs, Tab } from 'react-bootstrap'
+import { Card, Table, Button, Form, InputGroup, Spinner, Alert, Badge, Dropdown, Tabs, Tab, Pagination } from 'react-bootstrap'
 import AdminLayout from '../../components/AdminLayout'
 import { 
   FaSearch, FaTrash, FaFilter, FaBell, FaEnvelope, FaMobile, 
@@ -20,6 +20,12 @@ export default function NotificationCenter() {
   const [activeTab, setActiveTab] = useState('notifications')
   const [selectedTemplate, setSelectedTemplate] = useState(null)
   const [showTemplatePreview, setShowTemplatePreview] = useState(false)
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    totalCount: 0,
+    totalPages: 0
+  })
 
   useEffect(() => {
     if (activeTab === 'notifications') {
@@ -27,17 +33,25 @@ export default function NotificationCenter() {
     } else if (activeTab === 'templates') {
       fetchTemplates()
     }
-  }, [activeTab])
+  }, [activeTab, typeFilter, statusFilter, pagination.page])
 
   const fetchNotifications = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/admin/notifications')
+      const queryParams = new URLSearchParams({
+        page: pagination.page,
+        limit: pagination.limit,
+        ...(typeFilter !== 'all' && { type: typeFilter }),
+        ...(statusFilter !== 'all' && { status: statusFilter })
+      })
+      
+      const response = await fetch(`/api/admin/notifications?${queryParams}`)
       if (!response.ok) {
         throw new Error(`Failed to fetch notifications: ${response.status} ${response.statusText}`)
       }
       const data = await response.json()
-      setNotifications(data)
+      setNotifications(data.notifications)
+      setPagination(data.pagination)
     } catch (error) {
       console.error('Error fetching notifications:', error)
       setError(error.message)
@@ -106,17 +120,37 @@ export default function NotificationCenter() {
     setShowTemplatePreview(true)
   }
 
+  const handlePageChange = (page) => {
+    setPagination(prev => ({ ...prev, page }))
+  }
+
+  const handleTypeFilter = (type) => {
+    setTypeFilter(type)
+    setPagination(prev => ({ ...prev, page: 1 }))
+  }
+
+  const handleStatusFilter = (status) => {
+    setStatusFilter(status)
+    setPagination(prev => ({ ...prev, page: 1 }))
+  }
+
   const getNotificationTypeBadge = (type) => {
-    switch(type) {
-      case 'email':
-        return <Badge bg="primary"><FaEnvelope className="me-1" /> Email</Badge>
-      case 'sms':
-        return <Badge bg="info"><FaMobile className="me-1" /> SMS</Badge>
-      case 'whatsapp':
-        return <Badge bg="success"><FaWhatsapp className="me-1" /> WhatsApp</Badge>
-      default:
-        return <Badge bg="secondary">{type}</Badge>
+    const types = {
+      order: { icon: <FaBoxes className="me-1" />, color: 'primary' },
+      payment: { icon: <FaCheck className="me-1" />, color: 'success' },
+      quote: { icon: <FaCalendarAlt className="me-1" />, color: 'info' },
+      review: { icon: <FaStore className="me-1" />, color: 'warning' },
+      system: { icon: <FaBell className="me-1" />, color: 'secondary' },
+      alert: { icon: <FaExclamationTriangle className="me-1" />, color: 'danger' }
     }
+
+    const { icon, color } = types[type.toLowerCase()] || types.system
+
+    return (
+      <Badge bg={color} className="d-inline-flex align-items-center">
+        {icon} {type.charAt(0).toUpperCase() + type.slice(1)}
+      </Badge>
+    )
   }
 
   const getNotificationStatusBadge = (status) => {
@@ -202,291 +236,154 @@ export default function NotificationCenter() {
 
   return (
     <AdminLayout>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>Notification Center</h2>
-      </div>
-
-      {error && (
-        <Alert variant="danger" dismissible onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
-
-      <Tabs
-        activeKey={activeTab}
-        onSelect={(k) => setActiveTab(k)}
-        className="mb-4"
-      >
-        <Tab 
-          eventKey="notifications" 
-          title={
-            <span>
-              <FaBell className="me-2" /> Notification History
-            </span>
-          }
-        >
-          <Card className="border-0 shadow-sm mb-4">
-            <Card.Header className="bg-white py-3 d-flex justify-content-between align-items-center">
-              <InputGroup style={{ maxWidth: '500px' }}>
-                <InputGroup.Text className="bg-light border-end-0">
-                  <FaSearch className="text-muted" />
-                </InputGroup.Text>
-                <Form.Control
-                  type="text"
-                  placeholder="Search notifications..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="border-start-0 bg-light"
-                />
-              </InputGroup>
-              <div className="d-flex">
-                <Dropdown className="me-2">
-                  <Dropdown.Toggle variant="outline-secondary" id="type-filter">
-                    <FaFilter className="me-2" /> 
-                    {typeFilter === 'all' ? 'All Types' : typeFilter}
+      <div className="container-fluid py-4">
+        <Card className="shadow-sm">
+          <Card.Header className="bg-white py-3">
+            <div className="d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">Notification Center</h5>
+              <div className="d-flex gap-2">
+                <Dropdown>
+                  <Dropdown.Toggle variant="outline-secondary" size="sm">
+                    <FaFilter className="me-2" />
+                    Type: {typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1)}
                   </Dropdown.Toggle>
                   <Dropdown.Menu>
-                    <Dropdown.Item onClick={() => setTypeFilter('all')} active={typeFilter === 'all'}>
-                      All Types
-                    </Dropdown.Item>
-                    <Dropdown.Divider />
-                    <Dropdown.Item onClick={() => setTypeFilter('email')} active={typeFilter === 'email'}>
-                      <FaEnvelope className="me-2" /> Email
-                    </Dropdown.Item>
-                    <Dropdown.Item onClick={() => setTypeFilter('sms')} active={typeFilter === 'sms'}>
-                      <FaMobile className="me-2" /> SMS
-                    </Dropdown.Item>
-                    <Dropdown.Item onClick={() => setTypeFilter('whatsapp')} active={typeFilter === 'whatsapp'}>
-                      <FaWhatsapp className="me-2" /> WhatsApp
-                    </Dropdown.Item>
+                    <Dropdown.Item onClick={() => handleTypeFilter('all')}>All Types</Dropdown.Item>
+                    <Dropdown.Item onClick={() => handleTypeFilter('order')}>Order</Dropdown.Item>
+                    <Dropdown.Item onClick={() => handleTypeFilter('payment')}>Payment</Dropdown.Item>
+                    <Dropdown.Item onClick={() => handleTypeFilter('quote')}>Quote</Dropdown.Item>
+                    <Dropdown.Item onClick={() => handleTypeFilter('review')}>Review</Dropdown.Item>
+                    <Dropdown.Item onClick={() => handleTypeFilter('system')}>System</Dropdown.Item>
+                    <Dropdown.Item onClick={() => handleTypeFilter('alert')}>Alert</Dropdown.Item>
                   </Dropdown.Menu>
                 </Dropdown>
                 <Dropdown>
-                  <Dropdown.Toggle variant="outline-secondary" id="status-filter">
-                    <FaFilter className="me-2" /> 
-                    {statusFilter === 'all' ? 'All Statuses' : statusFilter}
+                  <Dropdown.Toggle variant="outline-secondary" size="sm">
+                    <FaFilter className="me-2" />
+                    Status: {statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
                   </Dropdown.Toggle>
                   <Dropdown.Menu>
-                    <Dropdown.Item onClick={() => setStatusFilter('all')} active={statusFilter === 'all'}>
-                      All Statuses
-                    </Dropdown.Item>
-                    <Dropdown.Divider />
-                    <Dropdown.Item onClick={() => setStatusFilter('sent')} active={statusFilter === 'sent'}>
-                      <FaCheck className="me-2" /> Sent
-                    </Dropdown.Item>
-                    <Dropdown.Item onClick={() => setStatusFilter('failed')} active={statusFilter === 'failed'}>
-                      <FaExclamationTriangle className="me-2" /> Failed
-                    </Dropdown.Item>
-                    <Dropdown.Item onClick={() => setStatusFilter('pending')} active={statusFilter === 'pending'}>
-                      Pending
-                    </Dropdown.Item>
+                    <Dropdown.Item onClick={() => handleStatusFilter('all')}>All Status</Dropdown.Item>
+                    <Dropdown.Item onClick={() => handleStatusFilter('read')}>Read</Dropdown.Item>
+                    <Dropdown.Item onClick={() => handleStatusFilter('unread')}>Unread</Dropdown.Item>
                   </Dropdown.Menu>
                 </Dropdown>
               </div>
-            </Card.Header>
-            <Card.Body className="p-0">
-              <div className="table-responsive">
-                <Table hover className="mb-0">
-                  <thead className="bg-light">
-                    <tr>
-                      <th>Type</th>
-                      <th>Recipient</th>
-                      <th>Subject/Message</th>
-                      <th>Event</th>
-                      <th>Status</th>
-                      <th>Sent At</th>
-                      <th className="text-end">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredNotifications.length > 0 ? (
-                      filteredNotifications.map(notification => (
+            </div>
+          </Card.Header>
+          <Card.Body className="p-0">
+            {loading ? (
+              <div className="text-center py-4">
+                <Spinner animation="border" variant="primary" />
+                <p className="mt-3">Loading notifications...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-4">
+                <i className="bi bi-exclamation-circle text-danger"></i>
+                <p className="text-muted mt-2 mb-0">{error}</p>
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="text-center py-4">
+                <i className="bi bi-bell text-muted" style={{ fontSize: '1.5rem' }}></i>
+                <p className="text-muted mt-2 mb-0">No notifications found</p>
+              </div>
+            ) : (
+              <>
+                <div className="table-responsive">
+                  <Table hover className="mb-0">
+                    <thead className="bg-light">
+                      <tr>
+                        <th>Type</th>
+                        <th>Title</th>
+                        <th>Message</th>
+                        <th>User</th>
+                        <th>Status</th>
+                        <th>Created At</th>
+                        <th className="text-end">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {notifications.map(notification => (
                         <tr key={notification.id}>
                           <td className="align-middle">
                             {getNotificationTypeBadge(notification.type)}
                           </td>
                           <td className="align-middle">
-                            <div className="d-flex flex-column">
-                              <span>{notification.recipient}</span>
-                              <small className="text-muted">
-                                {getRecipientTypeBadge(notification.recipientType)}
-                              </small>
+                            <div style={{ maxWidth: '200px' }} className="text-truncate">
+                              {notification.title}
                             </div>
                           </td>
                           <td className="align-middle">
-                            <div style={{ maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {notification.subject || notification.message}
+                            <div style={{ maxWidth: '300px' }} className="text-truncate">
+                              {notification.message}
                             </div>
-                          </td>
-                          <td className="align-middle">
-                            {getEventTypeBadge(notification.eventType)}
-                          </td>
-                          <td className="align-middle">
-                            {getNotificationStatusBadge(notification.status)}
                           </td>
                           <td className="align-middle">
                             <div className="d-flex align-items-center">
-                              <FaCalendarAlt className="text-muted me-2" />
-                              {new Date(notification.sentAt).toLocaleString()}
+                              <div className="ms-2">
+                                <div className="fw-bold">{notification.userName}</div>
+                                <div className="small text-muted">{notification.userEmail}</div>
+                              </div>
                             </div>
                           </td>
+                          <td className="align-middle">
+                            <Badge bg={notification.isRead ? 'success' : 'warning'}>
+                              {notification.isRead ? 'Read' : 'Unread'}
+                            </Badge>
+                          </td>
+                          <td className="align-middle">
+                            {new Date(notification.createdAt).toLocaleString()}
+                          </td>
                           <td className="align-middle text-end">
-                            <Button 
-                              variant="outline-primary" 
-                              size="sm" 
-                              className="me-2"
-                              onClick={() => handleResendNotification(notification.id)}
-                              disabled={notification.status === 'pending'}
-                            >
-                              <FaEnvelope /> Resend
-                            </Button>
-                            <Button 
-                              variant="outline-danger" 
-                              size="sm"
+                            <Button
+                              variant="link"
+                              className="text-danger p-0 me-3"
                               onClick={() => handleDeleteNotification(notification.id)}
                             >
                               <FaTrash />
                             </Button>
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="7" className="text-center py-4">
-                          {searchTerm || typeFilter !== 'all' || statusFilter !== 'all' ? 
-                            'No notifications match your search criteria' : 
-                            'No notifications found'}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </Table>
-              </div>
-            </Card.Body>
-          </Card>
-        </Tab>
-        <Tab 
-          eventKey="templates" 
-          title={
-            <span>
-              <FaEnvelope className="me-2" /> Notification Templates
-            </span>
-          }
-        >
-          <Card className="border-0 shadow-sm mb-4">
-            <Card.Header className="bg-white py-3">
-              <InputGroup>
-                <InputGroup.Text className="bg-light border-end-0">
-                  <FaSearch className="text-muted" />
-                </InputGroup.Text>
-                <Form.Control
-                  type="text"
-                  placeholder="Search templates..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="border-start-0 bg-light"
-                />
-              </InputGroup>
-            </Card.Header>
-            <Card.Body className="p-0">
-              <div className="table-responsive">
-                <Table hover className="mb-0">
-                  <thead className="bg-light">
-                    <tr>
-                      <th>Template Name</th>
-                      <th>Type</th>
-                      <th>Description</th>
-                      <th>Last Updated</th>
-                      <th className="text-end">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredTemplates.length > 0 ? (
-                      filteredTemplates.map(template => (
-                        <tr key={template.id}>
-                          <td className="align-middle fw-medium">{template.name}</td>
-                          <td className="align-middle">
-                            {getNotificationTypeBadge(template.type)}
-                          </td>
-                          <td className="align-middle">
-                            <div style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {template.description}
-                            </div>
-                          </td>
-                          <td className="align-middle">
-                            <div className="d-flex align-items-center">
-                              <FaHistory className="text-muted me-2" />
-                              {new Date(template.updatedAt).toLocaleDateString()}
-                            </div>
-                          </td>
-                          <td className="align-middle text-end">
-                            <Button 
-                              variant="outline-primary" 
-                              size="sm" 
-                              onClick={() => handleViewTemplate(template)}
-                            >
-                              <FaEye /> View
-                            </Button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="5" className="text-center py-4">
-                          {searchTerm ? 
-                            'No templates match your search criteria' : 
-                            'No templates found'}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </Table>
-              </div>
-            </Card.Body>
-          </Card>
-
-          {showTemplatePreview && selectedTemplate && (
-            <Card className="border-0 shadow-sm mb-4">
-              <Card.Header className="bg-white py-3 d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">Template Preview: {selectedTemplate.name}</h5>
-                <Button 
-                  variant="outline-secondary" 
-                  size="sm"
-                  onClick={() => setShowTemplatePreview(false)}
-                >
-                  Close
-                </Button>
-              </Card.Header>
-              <Card.Body>
-                <div className="mb-3">
-                  <strong>Type:</strong> {selectedTemplate.type}
+                      ))}
+                    </tbody>
+                  </Table>
                 </div>
-                {selectedTemplate.subject && (
-                  <div className="mb-3">
-                    <strong>Subject:</strong> {selectedTemplate.subject}
+                {pagination.totalPages > 1 && (
+                  <div className="d-flex justify-content-center py-3">
+                    <Pagination>
+                      <Pagination.First
+                        disabled={pagination.page === 1}
+                        onClick={() => handlePageChange(1)}
+                      />
+                      <Pagination.Prev
+                        disabled={pagination.page === 1}
+                        onClick={() => handlePageChange(pagination.page - 1)}
+                      />
+                      {[...Array(pagination.totalPages)].map((_, i) => (
+                        <Pagination.Item
+                          key={i + 1}
+                          active={i + 1 === pagination.page}
+                          onClick={() => handlePageChange(i + 1)}
+                        >
+                          {i + 1}
+                        </Pagination.Item>
+                      ))}
+                      <Pagination.Next
+                        disabled={pagination.page === pagination.totalPages}
+                        onClick={() => handlePageChange(pagination.page + 1)}
+                      />
+                      <Pagination.Last
+                        disabled={pagination.page === pagination.totalPages}
+                        onClick={() => handlePageChange(pagination.totalPages)}
+                      />
+                    </Pagination>
                   </div>
                 )}
-                <div className="mb-3">
-                  <strong>Content:</strong>
-                  <div className="border rounded p-3 mt-2" style={{ whiteSpace: 'pre-wrap' }}>
-                    {selectedTemplate.content}
-                  </div>
-                </div>
-                <div className="mb-3">
-                  <strong>Variables:</strong>
-                  <div className="mt-2">
-                    {selectedTemplate.variables?.map(variable => (
-                      <Badge key={variable} bg="secondary" className="me-2 mb-2">
-                        {variable}
-                      </Badge>
-                    )) || 'No variables defined'}
-                  </div>
-                </div>
-              </Card.Body>
-            </Card>
-          )}
-        </Tab>
-      </Tabs>
+              </>
+            )}
+          </Card.Body>
+        </Card>
+      </div>
     </AdminLayout>
   )
 } 

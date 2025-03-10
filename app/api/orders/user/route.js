@@ -46,7 +46,7 @@ async function createUserOrder(request) {
     
     return NextResponse.json({
       success: true,
-      orderId: newOrder.orderId,
+      orderId: newOrder.id,
       orderNumber: newOrder.orderNumber
     })
   } catch (error) {

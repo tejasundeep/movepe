@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Container, Row, Col, Card, Table, Badge, Button, Spinner, Alert } from 'react-bootstrap';
 import { FaMotorcycle, FaCheck, FaTimes, FaUser } from 'react-icons/fa';
+import React from 'react';
 
 export default function AdminRidersPage() {
   const { data: session, status } = useSession();
@@ -174,9 +175,9 @@ export default function AdminRidersPage() {
                           {approvalLoading[rider.riderId] ? (
                             <Spinner animation="border" size="sm" />
                           ) : (
-                            <>
+                            <React.Fragment key={`approve-${rider.riderId}`}>
                               <FaCheck className="me-1" /> Approve
-                            </>
+                            </React.Fragment>
                           )}
                         </Button>
                       )}

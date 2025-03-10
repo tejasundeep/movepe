@@ -91,7 +91,7 @@ export default function Navigation() {
               <>
                 <Dropdown align="end">
                   <Dropdown.Toggle variant="dark" id="user-dropdown" className="user-dropdown">
-                    <span className="me-2">{session.user.name}</span>
+                    <span className="me-1">{session.user.name}</span>
                     {session.user.role === 'admin' && (
                       <span className="ms-1 badge bg-danger">Admin</span>
                     )}

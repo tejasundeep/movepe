@@ -3,8 +3,9 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../../../lib/auth';
+import { orderService } from '../../../../../lib/services/orderService';
 import { riderService } from '../../../../../lib/services/riderService';
-import { storage } from '../../../../../lib/storage';
+import { pincodeStorage } from '../../../../../lib/storage';
 import { userService } from '../../../../../lib/services/userService';
 import { notificationService } from '../../../../../lib/services/notificationService';
 import { withRateLimit } from '../../../../../lib/middleware/rateLimitMiddleware';
@@ -21,14 +22,11 @@ async function assignRider(request, { params }) {
     const { orderId } = params;
     
     // Get order details
-    const orders = await storage.readData('orders.json') || [];
-    const orderIndex = orders.findIndex(o => o.orderId === orderId);
+    const order = await orderService.getOrderById(orderId);
     
-    if (orderIndex === -1) {
+    if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
-    
-    const order = orders[orderIndex];
     
     // Check if order is a parcel delivery
     if (order.orderType !== 'parcel') {
@@ -39,7 +37,7 @@ async function assignRider(request, { params }) {
     }
     
     // Check if rider is already assigned
-    if (order.assignedRiderId) {
+    if (order.riderId) {
       return NextResponse.json(
         { error: 'Rider is already assigned to this order' },
         { status: 400 }
@@ -55,8 +53,7 @@ async function assignRider(request, { params }) {
     // If pickup location is not available, try to get it from the pincode
     if (!pickupLocation.lat || !pickupLocation.lon) {
       // Get location data from pincode
-      const pincodes = await storage.readData('pincodes.json') || [];
-      const pincode = pincodes.find(p => p.pincode === order.pickupPincode);
+      const pincode = await pincodeStorage.getByPincode(order.pickupPincode);
       
       if (!pincode || !pincode.lat || !pincode.lon) {
         return NextResponse.json(
@@ -94,5 +91,5 @@ async function assignRider(request, { params }) {
   }
 }
 
-// Apply rate limiting middleware
-export const POST = withRateLimit(assignRider, { limit: 20, windowMs: 60000 }); 
+// Apply rate limiting to the handler
+export const POST = withRateLimit(assignRider, 'orders'); 

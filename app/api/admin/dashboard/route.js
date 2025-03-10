@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { storage } from '../../../../lib/storage';
+import { userStorage, vendorStorage, orderStorage } from '../../../../lib/storage';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../../lib/auth';
 
@@ -18,26 +18,16 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
-    // Get data from storage
-    const users = await storage.readData('users.json') || [];
-    const vendors = await storage.readData('vendors.json') || [];
-    const orders = await storage.readData('orders.json') || [];
-
-    // Calculate statistics
-    const totalUsers = users.filter(user => user.role === 'user').length;
-    const totalVendors = vendors.length;
-    const totalOrders = orders.length;
+    // Get data from storage services
+    const totalUsers = await userStorage.getUserCount('user');
+    const totalVendors = await vendorStorage.getVendorCount();
+    const totalOrders = await orderStorage.getOrderCount();
     
     // Get pending quotes count
-    const pendingQuotes = orders.filter(order => 
-      order.status === 'Initiated' || 
-      order.status === 'QuoteRequested'
-    ).length;
+    const pendingQuotes = await orderStorage.getPendingQuotesCount();
 
     // Get recent orders (last 10)
-    const recentOrders = orders
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, 10);
+    const recentOrders = await orderStorage.getRecentOrders(10);
 
     return NextResponse.json({
       totalUsers,

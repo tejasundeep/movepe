@@ -1,0 +1,361 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User model
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  password          String?
+  name              String
+  phone             String?
+  role              String    @default("customer") // customer, vendor, rider, admin
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  isVerified        Boolean   @default(false)
+  profilePicture    String?
+  address           String?
+  city              String?
+  state             String?
+  pincode           String?
+  
+  // Relations
+  orders            Order[]   @relation("CustomerOrders")
+  vendorProfile     Vendor?
+  riderProfile      Rider?
+  reviews           Review[]  @relation("UserReviews")
+  receivedReviews   Review[]  @relation("ReceivedReviews")
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  
+  // Affiliate relations
+  affiliateAccount  Affiliate?
+  referrals         Referral[] @relation("ReferredUsers")
+  
+  // Review relations
+  reviewResponses   ReviewResponse[]
+}
+
+// Vendor model
+model Vendor {
+  id                String    @id @default(uuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessName      String
+  description       String?
+  serviceAreas      String    // Stored as JSON string
+  specialties       String    // Stored as JSON string
+  basePrice         Float
+  isVerified        Boolean   @default(false)
+  rating            Float     @default(0)
+  totalRatings      Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  orders            Order[]   @relation("VendorOrders")
+  quotes            Quote[]
+  inventory         Inventory?
+  quoteTemplates    QuoteTemplate[]
+}
+
+// Rider model
+model Rider {
+  id                String    @id @default(uuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicleType       String
+  vehicleNumber     String
+  licenseNumber     String
+  serviceAreas      String    // Stored as JSON string
+  currentLocation   String?   // Stored as JSON string with lat, lon, lastUpdated
+  isAvailable       Boolean   @default(true)
+  isVerified        Boolean   @default(false)
+  rating            Float     @default(0)
+  totalRatings      Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  deliveries        Order[]   @relation("RiderDeliveries")
+}
+
+// Order model
+model Order {
+  id                String    @id @default(uuid())
+  orderNumber       String    @unique
+  customerId        String
+  customer          User      @relation("CustomerOrders", fields: [customerId], references: [id])
+  vendorId          String?
+  vendor            Vendor?   @relation("VendorOrders", fields: [vendorId], references: [id])
+  riderId           String?
+  rider             Rider?    @relation("RiderDeliveries", fields: [riderId], references: [id])
+  status            String    @default("initiated") // initiated, quotes_received, accepted, paid, scheduled, in_progress, completed, cancelled
+  orderType         String    // move, parcel
+  pickupAddress     String
+  pickupPincode     String
+  destinationAddress String
+  destinationPincode String
+  moveDate          DateTime?
+  moveSize          String?
+  items             String?   // Stored as JSON string
+  specialInstructions String?
+  amount            Float?
+  paymentStatus     String?   // pending, paid, refunded
+  declinedBy        String?   // Stored as JSON string with rider IDs
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  statusHistory     OrderStatusHistory[]
+  quotes            Quote[]
+  payments          Payment[]
+  reviews           Review[]
+  inventory         OrderInventory[]
+}
+
+// Order Status History model
+model OrderStatusHistory {
+  id                String    @id @default(uuid())
+  orderId           String
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status            String
+  notes             String?
+  createdBy         String?
+  createdAt         DateTime  @default(now())
+}
+
+// Quote model
+model Quote {
+  id                String    @id @default(uuid())
+  orderId           String
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  vendorId          String
+  vendor            Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  amount            Float
+  details           String    // Stored as JSON string
+  status            String    @default("pending") // pending, accepted, rejected, expired
+  expiresAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Quote Template model
+model QuoteTemplate {
+  id                String    @id @default(uuid())
+  vendorId          String
+  vendor            Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name              String
+  description       String?
+  baseAmount        Float
+  details           String    // Stored as JSON string
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Review model
+model Review {
+  id                String    @id @default(uuid())
+  orderId           String
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User      @relation("UserReviews", fields: [userId], references: [id], onDelete: Cascade)
+  targetUserId      String
+  targetUser        User      @relation("ReceivedReviews", fields: [targetUserId], references: [id], onDelete: Cascade)
+  rating            Float
+  comment           String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  criteria          ReviewCriteria[]
+  responses         ReviewResponse[]
+}
+
+// Review Criteria model
+model ReviewCriteria {
+  id                String    @id @default(uuid())
+  reviewId          String
+  review            Review    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  name              String    // e.g., "Timeliness", "Communication", "Value for Money"
+  rating            Float
+  createdAt         DateTime  @default(now())
+}
+
+// Review Response model
+model ReviewResponse {
+  id                String    @id @default(uuid())
+  reviewId          String
+  review            Review    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content           String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Payment model
+model Payment {
+  id                String    @id @default(uuid())
+  orderId           String
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount            Float
+  currency          String    @default("INR")
+  paymentMethod     String
+  paymentGateway    String    @default("razorpay")
+  gatewayPaymentId  String?
+  gatewayOrderId    String?
+  status            String    // initiated, completed, failed, refunded
+  refundAmount      Float?
+  refundReason      String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Notification model
+model Notification {
+  id                String    @id @default(uuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              String    // order, payment, quote, review, system, alert
+  title             String
+  message           String
+  data              String?   // Stored as JSON string
+  isRead            Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+}
+
+// Notification Template model
+model NotificationTemplate {
+  id                String    @id @default(uuid())
+  name              String    @unique
+  type              String    // email, sms, whatsapp, in-app
+  subject           String?
+  content           String
+  variables         String    // Stored as JSON string
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Inventory model
+model Inventory {
+  id                String    @id @default(uuid())
+  vendorId          String    @unique
+  vendor            Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  items             String    // Stored as JSON string
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  orderInventory    OrderInventory[]
+}
+
+// Order Inventory model
+model OrderInventory {
+  id                String    @id @default(uuid())
+  orderId           String
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  inventoryId       String
+  inventory         Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  items             String    // Stored as JSON string
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Analytics Event model
+model AnalyticsEvent {
+  id                String    @id @default(uuid())
+  eventType         String
+  userId            String?
+  data              String    // Stored as JSON string
+  createdAt         DateTime  @default(now())
+}
+
+// Audit Log model
+model AuditLog {
+  id                String    @id @default(uuid())
+  action            String
+  entityType        String
+  entityId          String
+  userId            String?
+  user              User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  details           String    // Stored as JSON string
+  createdAt         DateTime  @default(now())
+}
+
+// API Metric model
+model ApiMetric {
+  id                String    @id @default(uuid())
+  path              String
+  method            String
+  statusCode        Int
+  responseTime      Int
+  userId            String?
+  createdAt         DateTime  @default(now())
+}
+
+// Affiliate model
+model Affiliate {
+  id                String    @id @default(uuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referralCode      String    @unique
+  paymentDetails    String    // Stored as JSON string
+  status            String    @default("ACTIVE") // ACTIVE, SUSPENDED, INACTIVE
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  referrals         Referral[]
+  earnings          AffiliateEarning[]
+}
+
+// Referral model
+model Referral {
+  id                String    @id @default(uuid())
+  affiliateId       String
+  affiliate         Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  referredUserId    String
+  referredUser      User      @relation("ReferredUsers", fields: [referredUserId], references: [id], onDelete: Cascade)
+  status            String    @default("PENDING") // PENDING, COMPLETED, CANCELLED
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  earnings          AffiliateEarning[]
+}
+
+// Affiliate Earning model
+model AffiliateEarning {
+  id                String    @id @default(uuid())
+  affiliateId       String
+  affiliate         Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  referralId        String?
+  referral          Referral? @relation(fields: [referralId], references: [id], onDelete: SetNull)
+  amount            Float
+  description       String
+  status            String    @default("PENDING") // PENDING, PAID, CANCELLED
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Setting model
+model Setting {
+  id          String    @id @default(uuid())
+  key         String    @unique
+  value       String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}

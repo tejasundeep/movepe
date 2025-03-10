@@ -49,10 +49,10 @@ export async function POST(request) {
     }
 
     // Update order with rider assignment
-    const updatedOrder = await orderService.assignRider(orderId, rider.riderId);
+    const updatedOrder = await orderService.assignRider(orderId, rider.id);
 
     // Update rider status to busy
-    await riderService.updateRiderStatus(rider.riderId, 'busy');
+    await riderService.updateRiderStatus(rider.id, 'busy');
 
     // Send notification to customer
     await notificationService.sendNotification({
@@ -61,7 +61,7 @@ export async function POST(request) {
       message: `A rider has been assigned to your order #${orderId.substring(0, 8)}`,
       recipientEmail: order.userEmail,
       data: {
-        orderId: order.orderId,
+        orderId: order.id,
         riderName: rider.name,
         riderPhone: rider.phone
       }

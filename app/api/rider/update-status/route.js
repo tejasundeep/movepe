@@ -72,7 +72,7 @@ export async function POST(request) {
 
     // Check if this rider is assigned to this order
     // Check both riderId and assignedRiderId fields for compatibility
-    if (order.riderId !== rider.riderId && order.assignedRiderId !== rider.riderId) {
+    if (order.riderId !== rider.id && order.assignedRiderId !== rider.id) {
       return NextResponse.json({ error: 'You are not assigned to this order' }, { status: 403 });
     }
 
@@ -109,7 +109,7 @@ export async function POST(request) {
     // If delivery is completed or failed, update rider status to available
     if (status === 'delivered' || status === 'failed_delivery' || status === 'cancelled') {
       try {
-        await riderService.updateRiderStatus(rider.riderId, 'available');
+        await riderService.updateRiderStatus(rider.id, 'available');
       } catch (error) {
         console.error('Error updating rider status:', error);
         // Continue anyway, as the order status update was successful

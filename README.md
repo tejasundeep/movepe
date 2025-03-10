@@ -1,104 +1,120 @@
-# Move Management System
+# Move Management Platform
 
-A robust platform designed to streamline the process of organizing moves for both users and vendors. Built with Next.js and React-Bootstrap.
+A comprehensive platform for managing moves and deliveries, connecting customers, vendors, and riders in a seamless workflow.
 
-## Features
+## Overview
 
-- User move request submission with pincode autocomplete
-- Vendor selection and quote request system
-- Real-time order status tracking
-- Integrated payment processing with Razorpay
-- Email and WhatsApp notifications via SendGrid and Twilio
-- Vendor rating and review system
+This platform facilitates the entire process of organizing moves and deliveries, from request creation to service completion, including:
+- Order creation and management
+- Vendor selection and quoting
+- Payment processing
+- Delivery tracking
+- Rating and feedback
 
-## Prerequisites
+## Key Features
 
-- Node.js 14.x or higher
-- NPM 6.x or higher
-- A SendGrid account for email notifications
-- A Twilio account for WhatsApp notifications
-- A Razorpay account for payment processing
+- **Customer Dashboard**: Create and track orders, select vendors, and provide reviews
+- **Vendor Dashboard**: Manage service requests, submit quotes, and track earnings
+- **Rider Dashboard**: Handle deliveries and update delivery status
+- **Admin Dashboard**: Oversee platform operations and analytics
 
-## Installation
+## Technology Stack
+
+- **Frontend**: Next.js, React, React Bootstrap
+- **Backend**: Next.js API Routes
+- **Database**: Prisma ORM with SQLite (development) / PostgreSQL (production)
+- **Authentication**: NextAuth.js
+- **Payment Processing**: Razorpay
+- **Notifications**: SendGrid (email), Twilio (SMS/WhatsApp)
+
+## Recent Migration to Prisma
+
+We recently completed a migration from JSON file storage to Prisma ORM. This migration has significantly improved the application's:
+
+- **Performance**: Faster queries and reduced latency
+- **Scalability**: Better support for concurrent users and larger datasets
+- **Maintainability**: Type safety and improved code organization
+- **Security**: Enhanced data validation and access control
+
+### Migration Documentation
+
+For more information about the migration, please refer to the following documents:
+
+- [Migration Plan](./MIGRATION_PLAN.md): The plan that guided the migration process
+- [Migration Summary](./MIGRATION_SUMMARY.md): A summary of the changes and improvements
+- [Testing Plan](./TESTING_PLAN.md): The approach for testing the migrated application
+- [Deployment Plan](./DEPLOYMENT_PLAN.md): The strategy for deploying to production
+- [Database Optimization](./DATABASE_OPTIMIZATION.md): Best practices for optimizing database performance
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 16+
+- npm or yarn
+- SQLite (development) or PostgreSQL (production)
+
+### Installation
 
 1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd move-management-system
+   ```
+   git clone https://github.com/your-org/movepe.git
+   cd movepe
    ```
 
 2. Install dependencies:
-   ```bash
+   ```
    npm install
    ```
 
-3. Create a `.env.local` file in the root directory and add your configuration:
+3. Set up environment variables:
    ```
-   NEXTAUTH_SECRET=your-nextauth-secret-key
-   NEXTAUTH_URL=http://localhost:3000
+   cp .env.example .env.local
+   ```
+   Edit `.env.local` with your configuration.
 
-   # Razorpay Configuration
-   RAZORPAY_KEY_ID=your-razorpay-key-id
-   RAZORPAY_KEY_SECRET=your-razorpay-key-secret
-
-   # SendGrid Configuration
-   SENDGRID_API_KEY=your-sendgrid-api-key
-   SENDGRID_FROM_EMAIL=your-verified-sender@yourdomain.com
-
-   # Twilio Configuration
-   TWILIO_ACCOUNT_SID=your-twilio-account-sid
-   TWILIO_AUTH_TOKEN=your-twilio-auth-token
-   TWILIO_WHATSAPP_NUMBER=your-twilio-whatsapp-number
+4. Run database migrations:
+   ```
+   npx prisma migrate dev
    ```
 
-4. Start the development server:
-   ```bash
+5. Start the development server:
+   ```
    npm run dev
    ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+6. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Database Management
+
+- Use Prisma Studio to manage the database:
+  ```
+  npx prisma studio
+  ```
 
 ## Project Structure
 
-```
-/project-root
-  /app
-    /api            # API routes
-    /order         # Order-related pages
-    layout.js      # Root layout
-    page.js        # Homepage
-  /components      # React components
-  /data           # JSON data files
-  /lib            # Helper functions
-  /styles         # Global styles
-```
-
-## API Endpoints
-
-- `POST /api/orders` - Create a new move order
-- `GET /api/orders/[orderId]` - Get order details
-- `POST /api/orders/[orderId]/request-quotes` - Request quotes from vendors
-- `GET /api/pincodes/search` - Search pincodes with autocomplete
-
-## Data Storage
-
-The system uses JSON files for data storage:
-- `orders.json` - Stores order information
-- `vendors.json` - Stores vendor details
-- `pincodes.json` - Stores pincode data
+- `/app`: Next.js application routes and components
+- `/components`: Reusable UI components
+- `/lib`: Utility functions and services
+- `/prisma`: Prisma schema and migrations
+- `/public`: Static assets
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Commit your changes: `git commit -m 'Add your feature'`
+4. Push to the branch: `git push origin feature/your-feature`
+5. Submit a pull request
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Support
+## Acknowledgements
 
-For support, email support@yourdomain.com or create an issue in the repository. 
+- Next.js team for the amazing framework
+- Prisma team for the excellent ORM
+- React Bootstrap for the UI components
+- All contributors to this project 

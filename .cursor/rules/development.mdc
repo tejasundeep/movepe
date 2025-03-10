@@ -1,0 +1,36 @@
+---
+description: Development
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+
+- Update the `Project Initial Setup` section in the `project-builder.md` file by reviewing and modifying the initial setup details.
+- Update the `Project Environment File` section in the `project-builder.md` file by reviewing and modifying environment-related details.
+- Update the `Project Directory Structure` section in the `project-builder.md` file by reviewing and modifying the directory layout.
+- Update the `Project Frontend` section in the `project-builder.md` file by reviewing and modifying frontend-related information.
+- Update the `Project Backend` section in the `project-builder.md` file by reviewing and modifying backend-related information.
+- Update the `Project Database Schema` section in the `project-builder.md` file by reviewing and modifying the database schema.
+- Update the `Project API Routes` section in the `project-builder.md` file by reviewing and modifying API routes.
+- Update the `Project Design Choices` section in the `project-builder.md` file by reviewing and modifying design-related decisions.
+- Update the `Project Dependencies` section in the `project-builder.md` file by reviewing and modifying dependencies.
+- Update the `Project Tools` section in the `project-builder.md` file by reviewing and modifying tool-related information.
+- Update the `Project User Requirements` section in the `project-builder.md` file by reviewing and modifying user needs.
+- Update the `Project Context` section in the `project-builder.md` file by reviewing and modifying contextual information.
+- Update the `Project SEO Plan` section in the `project-builder.md` file by reviewing and modifying SEO-related details.
+- Update the `Project Plan` section in the `project-builder.md` file by reviewing and modifying project planning details.
+- Update the `Task Progress` section in the `project-builder.md` file to reflect completed tasks, subtasks, and milestones.
+- Update the `Project Error Handling` section in the `project-builder.md` file by reviewing and modifying error-handling details.
+- Update the `Project Testing` section in the `project-builder.md` file by reviewing and modifying testing-related details.
+- Update the `Project Debugging` section in the `project-builder.md` file by reviewing and modifying debugging-related details.
+- Update the `Project Security` section in the `project-builder.md` file by reviewing and modifying security-related details.
+- Update the `Optimization` section in the `project-builder.md` file by reviewing and modifying optimization-related details.
+- Update the `Code Review` section in the `project-builder.md` file by reviewing and modifying code review-related details.
+- Update the `Accessibility` section in the `project-builder.md` file by reviewing and modifying accessibility-related details.
+- Update the `Best Practices` section in the `project-builder.md` file by reviewing and modifying best practices-related details.
+- Update the `Project Scratchpad` section in the `project-builder.md` file by reviewing and modifying relevant notes.
+- Update the `Project Reusables` section in the `project-builder.md` file by reviewing and modifying reusable components.
+- Update the `Project Learnings` section in the `project-builder.md` file by reviewing and documenting key takeaways.
+- Ensure the `Project Scratchpad` section in the `project-builder.md` file is consistently updated.
+- Always refer all sections in the `project-builder.md` file when you plan the next step.

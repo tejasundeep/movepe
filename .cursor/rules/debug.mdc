@@ -1,0 +1,10 @@
+---
+description: Debugging rules
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+
+- For every major change, stop the running project in the terminal and run the project again in dev mode with command npm run dev.
+- what ever issues got on the terminal fix them one by one make sure there is no warning or errors in the terminal.

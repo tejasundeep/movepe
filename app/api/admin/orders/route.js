@@ -1,9 +1,10 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { storage } from '../../../../lib/storage';
+import { orderStorage } from '../../../../lib/storage';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../../lib/auth';
+import { auditService } from '../../../../lib/services/auditService';
 
 // GET all orders
 export async function GET(request) {
@@ -20,11 +21,20 @@ export async function GET(request) {
     }
 
     // Get orders from storage
-    const orders = await storage.readData('orders.json') || [];
+    const orders = await orderStorage.getAll();
     
     // Sort orders by creation date (newest first)
     const sortedOrders = orders.sort((a, b) => 
       new Date(b.createdAt) - new Date(a.createdAt)
+    );
+    
+    // Log the action
+    await auditService.logAction(
+      session.user.email,
+      'view_orders_list',
+      'order',
+      'all',
+      { count: orders.length }
     );
     
     return NextResponse.json(sortedOrders);

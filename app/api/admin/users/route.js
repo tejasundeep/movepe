@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { storage } from '../../../../lib/storage';
+import { userStorage } from '../../../../lib/storage';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../../lib/auth';
 import { v4 as uuidv4 } from 'uuid';
@@ -23,7 +23,7 @@ export async function GET(request) {
     }
 
     // Get users from storage
-    const users = await storage.readData('users.json') || [];
+    const users = await userStorage.getAll();
     
     // Log the action
     await auditService.logAction(
@@ -63,11 +63,9 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Get users from storage
-    const users = await storage.readData('users.json') || [];
-    
     // Check if user with email already exists
-    if (users.some(user => user.email === userData.email)) {
+    const existingUser = await userStorage.getByEmail(userData.email);
+    if (existingUser) {
       return NextResponse.json({ error: 'User with this email already exists' }, { status: 400 });
     }
 
@@ -75,20 +73,14 @@ export async function POST(request) {
     const hashedPassword = await bcrypt.hash(userData.password, 10);
     
     // Create new user
-    const newUser = {
-      id: uuidv4(),
+    const newUser = await userStorage.create({
       name: userData.name,
       email: userData.email,
       password: hashedPassword,
       role: userData.role || 'user',
       phone: userData.phone || null,
-      whatsapp: userData.whatsapp || null,
-      createdAt: new Date().toISOString()
-    };
-
-    // Add user to storage
-    users.push(newUser);
-    await storage.writeData('users.json', users);
+      whatsapp: userData.whatsapp || null
+    });
     
     // Log the action
     await auditService.logAction(

@@ -1,11 +1,11 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { storage } from '../../../../lib/storage';
+import { vendorStorage, userStorage } from '../../../../lib/storage';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../../lib/auth';
-import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
+import { auditService } from '../../../../lib/services/auditService';
 
 // GET all vendors
 export async function GET(request) {
@@ -22,7 +22,16 @@ export async function GET(request) {
     }
 
     // Get vendors from storage
-    const vendors = await storage.readData('vendors.json') || [];
+    const vendors = await vendorStorage.getAll();
+    
+    // Log the action
+    await auditService.logAction(
+      session.user.email,
+      'view_vendors_list',
+      'vendor',
+      'all',
+      { count: vendors.length }
+    );
     
     return NextResponse.json(vendors);
   } catch (error) {
@@ -53,61 +62,54 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Get vendors and users from storage
-    const vendors = await storage.readData('vendors.json') || [];
-    const users = await storage.readData('users.json') || [];
-    
     // Check if vendor with email already exists
-    if (vendors.some(vendor => vendor.email === vendorData.email)) {
+    const existingVendor = await vendorStorage.getByEmail(vendorData.email);
+    if (existingVendor) {
       return NextResponse.json({ error: 'Vendor with this email already exists' }, { status: 400 });
     }
 
-    // Check if user with email already exists
-    if (users.some(user => user.email === vendorData.email)) {
-      return NextResponse.json({ error: 'User with this email already exists' }, { status: 400 });
-    }
-
-    // Generate vendor ID
-    const vendorId = uuidv4();
-    
-    // Create new vendor
-    const newVendor = {
-      vendorId,
-      name: vendorData.name,
-      email: vendorData.email,
-      phone: vendorData.phone || null,
-      whatsapp: vendorData.whatsapp || vendorData.phone || null,
-      serviceAreas: vendorData.serviceAreas || [],
-      pricingTier: vendorData.pricingTier || 'default',
-      description: vendorData.description || '',
-      rating: 0,
-      reviewCount: 0,
-      reviews: [],
-      availability: 'available',
-      createdAt: new Date().toISOString()
-    };
-
-    // Add vendor to storage
-    vendors.push(newVendor);
-    await storage.writeData('vendors.json', vendors);
-    
-    // Create user account for vendor
+    // Hash password
     const hashedPassword = await bcrypt.hash(vendorData.password, 10);
-    const newUser = {
-      id: uuidv4(),
+    
+    // Create user account first
+    const newUser = await userStorage.create({
       name: vendorData.name,
       email: vendorData.email,
       password: hashedPassword,
       role: 'vendor',
-      vendorId, // Link to vendor account
       phone: vendorData.phone || null,
-      whatsapp: vendorData.whatsapp || vendorData.phone || null,
-      createdAt: new Date().toISOString()
-    };
+      whatsapp: vendorData.whatsapp || null
+    });
     
-    // Add user to storage
-    users.push(newUser);
-    await storage.writeData('users.json', users);
+    // Create vendor profile
+    const newVendor = await vendorStorage.create({
+      userId: newUser.id,
+      name: vendorData.name,
+      email: vendorData.email,
+      phone: vendorData.phone || null,
+      whatsapp: vendorData.whatsapp || null,
+      address: vendorData.address || null,
+      city: vendorData.city || null,
+      state: vendorData.state || null,
+      pincode: vendorData.pincode || null,
+      description: vendorData.description || null,
+      services: vendorData.services || [],
+      serviceAreas: vendorData.serviceAreas || [],
+      status: vendorData.status || 'Pending'
+    });
+    
+    // Log the action
+    await auditService.logAction(
+      session.user.email,
+      'create_vendor',
+      'vendor',
+      newVendor.id,
+      { 
+        name: newVendor.name,
+        email: newVendor.email,
+        status: newVendor.status
+      }
+    );
     
     return NextResponse.json(newVendor, { status: 201 });
   } catch (error) {

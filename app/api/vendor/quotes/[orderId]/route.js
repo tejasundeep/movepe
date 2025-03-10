@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../../../../../lib/auth'
-import { storage } from '../../../../../lib/storage'
+import { storage, vendorStorage } from '../../../../../lib/storage'
 import { orderService } from '../../../../../lib/services/orderService'
 import { vendorService } from '../../../../../lib/services/vendorService'
 import { withRateLimit } from '../../../../../lib/middleware/rateLimitMiddleware'
@@ -29,16 +29,8 @@ async function submitQuote(request, { params }) {
       )
     }
 
-    // Get vendor details
-    const vendors = await storage.readData('vendors.json')
-    if (!vendors) {
-      return NextResponse.json(
-        { error: 'Failed to read vendors data' },
-        { status: 500 }
-      )
-    }
-    
-    const vendor = vendors.find(v => v.email === session.user.email)
+    // Get vendor details using Prisma
+    const vendor = await vendorService.getVendorByEmail(session.user.email)
     if (!vendor) {
       return NextResponse.json(
         { error: 'Vendor not found' },
@@ -68,7 +60,7 @@ async function submitQuote(request, { params }) {
       };
       
       // Calculate vendor-specific price
-      const priceDetails = await vendorService.calculateVendorPrice(vendor.vendorId, moveDetails);
+      const priceDetails = await vendorService.calculateVendorPrice(vendor.id, moveDetails);
       
       // Check if quote amount is within reasonable range (±30% of recommended price)
       const minReasonablePrice = Math.round(priceDetails.basePrice * 0.7);
@@ -89,14 +81,14 @@ async function submitQuote(request, { params }) {
     // Submit quote using the order service
     const result = await orderService.submitQuote(
       orderId,
-      vendor.vendorId,
+      vendor.id,
       Number(amount)
     );
 
     return NextResponse.json({
       success: true,
       orderId,
-      vendorId: vendor.vendorId,
+      vendorId: vendor.id,
       amount: Number(amount),
       submittedAt: result.submittedAt,
       recommendedPrice,

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../../../../lib/auth'
 import { vendorService } from '../../../../lib/services/vendorService'
-import { storage } from '../../../../lib/storage'
+import { storage, vendorStorage } from '../../../../lib/storage'
 import { withRateLimit } from '../../../../lib/middleware/rateLimitMiddleware'
 
 export const dynamic = 'force-dynamic'
@@ -17,17 +17,9 @@ async function getVendorPerformance(request) {
       )
     }
 
-    // Get vendor ID from session user
-    const vendors = await storage.readData('vendors.json')
-    if (!vendors) {
-      return NextResponse.json(
-        { error: 'Failed to read vendors data' },
-        { status: 500 }
-      )
-    }
-    
-    const vendor = vendors.find(v => v && v.email === session.user.email)
-    if (!vendor || !vendor.vendorId) {
+    // Get vendor details using Prisma
+    const vendor = await vendorService.getVendorByEmail(session.user.email)
+    if (!vendor) {
       return NextResponse.json(
         { error: 'Vendor not found' },
         { status: 404 }
@@ -35,7 +27,7 @@ async function getVendorPerformance(request) {
     }
 
     // Get performance metrics
-    const metrics = await vendorService.getVendorPerformanceMetrics(vendor.vendorId)
+    const metrics = await vendorService.getVendorPerformanceMetrics(vendor.id)
     
     return NextResponse.json(metrics)
   } catch (error) {

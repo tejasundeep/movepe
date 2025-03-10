@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/auth';
 import { analyticsService } from '../../../../../lib/services/analyticsService';
-import { storage } from '../../../../../lib/storage';
+import { vendorStorage } from '../../../../../lib/storage';
 import { withRateLimit } from '../../../../../lib/middleware/rateLimitMiddleware';
 
 /**
@@ -28,165 +28,59 @@ async function getVendorAnalytics(request, { params }) {
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const metric = searchParams.get('metric');
     
-    // Verify user has access to this vendor's data
-    const isAdmin = session.user?.role === 'admin';
-    const isVendorOwner = session.user?.vendorId === vendorId;
+    // Check authorization - only admin or the vendor themselves can access
+    const isAdmin = session.user.role === 'admin';
+    const isVendor = session.user.role === 'vendor';
     
-    if (!isAdmin && !isVendorOwner) {
-      return NextResponse.json({ error: 'Forbidden: You do not have access to this vendor data' }, { status: 403 });
-    }
-    
-    // Get vendor details
-    const vendors = await storage.readData('vendors.json');
-    const vendor = vendors.find(v => v.vendorId === vendorId);
-    
-    if (!vendor) {
-      return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
-    }
-    
-    // Get orders for this vendor
-    const orders = await storage.readData('orders.json') || [];
-    const vendorOrders = orders.filter(o => o.selectedVendorId === vendorId);
-    
-    // Filter by date range if provided
-    let filteredOrders = vendorOrders;
-    if (startDate || endDate) {
-      const start = startDate ? new Date(startDate) : new Date(0);
-      const end = endDate ? new Date(endDate) : new Date();
-      
-      filteredOrders = vendorOrders.filter(order => {
-        const orderDate = new Date(order.createdAt);
-        return orderDate >= start && orderDate <= end;
-      });
-    }
-    
-    // Calculate metrics
-    const totalOrders = filteredOrders.length;
-    const completedOrders = filteredOrders.filter(o => 
-      o.status === 'Completed' || o.status === 'Reviewed' || o.status === 'Closed'
-    ).length;
-    const cancelledOrders = filteredOrders.filter(o => o.status === 'Cancelled').length;
-    const activeOrders = filteredOrders.filter(o => 
-      o.status === 'Paid' || 
-      o.status === 'In Progress' || 
-      o.status === 'In Transit' || 
-      o.status === 'Delivered'
-    );
-    
-    // Calculate revenue
-    const revenue = filteredOrders.reduce((sum, order) => {
-      if (order.payment && order.payment.amount) {
-        return sum + order.payment.amount;
+    // If user is a vendor, verify they are requesting their own data
+    if (isVendor) {
+      const vendor = await vendorStorage.getByEmail(session.user.email);
+      if (!vendor || vendor.id !== vendorId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
-      return sum;
-    }, 0);
-    
-    // Calculate commission
-    const commissionRate = vendor.tier ? analyticsService.getCommissionRateByTier(vendor.tier) : 15;
-    const commission = revenue * (commissionRate / 100);
-    const vendorEarnings = revenue - commission;
-    
-    // Get monthly trends
-    const monthlyTrends = [];
-    const now = new Date();
-    for (let i = 0; i < 6; i++) { // Last 6 months
-      const month = new Date(now);
-      month.setMonth(month.getMonth() - i);
-      month.setDate(1); // First day of month
-      month.setHours(0, 0, 0, 0);
-      
-      const nextMonth = new Date(month);
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
-      
-      const monthOrders = vendorOrders.filter(order => {
-        const orderDate = new Date(order.createdAt);
-        return orderDate >= month && orderDate < nextMonth;
-      });
-      
-      const monthRevenue = monthOrders.reduce((sum, order) => {
-        if (order.payment && order.payment.amount) {
-          return sum + order.payment.amount;
-        }
-        return sum;
-      }, 0);
-      
-      const monthEarnings = monthRevenue - (monthRevenue * (commissionRate / 100));
-      
-      monthlyTrends.push({
-        month: month.toLocaleString('default', { month: 'short', year: 'numeric' }),
-        orders: monthOrders.length,
-        revenue: monthRevenue,
-        earnings: monthEarnings
-      });
+    } else if (!isAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     
-    // Reverse to get chronological order
-    monthlyTrends.reverse();
+    // Get vendor analytics based on requested metric
+    let result;
     
-    // Get reviews
-    const reviews = [];
-    for (const order of vendorOrders) {
-      if (order.review) {
-        reviews.push({
-          reviewId: order.review.id,
-          orderId: order.orderId,
-          rating: order.review.rating,
-          comment: order.review.comment,
-          createdAt: order.review.createdAt,
-          vendorResponse: order.review.vendorResponse
-        });
-      }
+    switch (metric) {
+      case 'performance':
+        result = await analyticsService.getVendorPerformanceMetrics(vendorId);
+        break;
+      case 'orders':
+        result = await analyticsService.getVendorOrders(vendorId, startDate, endDate);
+        break;
+      case 'reviews':
+        result = await analyticsService.getVendorReviews(vendorId);
+        break;
+      case 'leads':
+        result = await analyticsService.getVendorLeads(vendorId, startDate, endDate);
+        break;
+      case 'earnings':
+        result = await analyticsService.getVendorEarnings(vendorId, startDate, endDate);
+        break;
+      default:
+        // If no specific metric requested, return all metrics
+        const performance = await analyticsService.getVendorPerformanceMetrics(vendorId);
+        const orders = await analyticsService.getVendorOrders(vendorId, startDate, endDate);
+        const reviews = await analyticsService.getVendorReviews(vendorId);
+        const leads = await analyticsService.getVendorLeads(vendorId, startDate, endDate);
+        const earnings = await analyticsService.getVendorEarnings(vendorId, startDate, endDate);
+        
+        result = {
+          performance,
+          orders,
+          reviews,
+          leads,
+          earnings
+        };
     }
     
-    // Calculate average rating
-    const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
-    const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
-    
-    // Get rating distribution
-    const ratingDistribution = {
-      1: reviews.filter(r => r.rating === 1).length,
-      2: reviews.filter(r => r.rating === 2).length,
-      3: reviews.filter(r => r.rating === 3).length,
-      4: reviews.filter(r => r.rating === 4).length,
-      5: reviews.filter(r => r.rating === 5).length
-    };
-    
-    // Get response rate
-    const responseRate = reviews.length > 0 
-      ? (reviews.filter(r => r.vendorResponse).length / reviews.length) * 100 
-      : 0;
-    
-    return NextResponse.json({
-      vendorInfo: {
-        vendorId: vendor.vendorId,
-        name: vendor.name,
-        tier: vendor.tier || 'Bronze',
-        rating: averageRating,
-        reviewCount: reviews.length,
-        availability: vendor.availability || 'available'
-      },
-      metrics: {
-        totalOrders,
-        completedOrders,
-        cancelledOrders,
-        activeOrdersCount: activeOrders.length,
-        revenue,
-        commission,
-        vendorEarnings,
-        commissionRate
-      },
-      monthlyTrends,
-      reviews: {
-        averageRating,
-        totalReviews: reviews.length,
-        ratingDistribution,
-        responseRate,
-        recentReviews: reviews
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-          .slice(0, 5)
-      }
-    });
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error fetching vendor analytics:', error);
     return NextResponse.json(

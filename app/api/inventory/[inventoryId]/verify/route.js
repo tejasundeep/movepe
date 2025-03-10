@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../../../../../lib/auth'
 import { inventoryService } from '../../../../../lib/services/inventoryService'
-import { storage } from '../../../../../lib/storage'
+import { inventoryStorage } from '../../../../../lib/storage'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,15 +39,7 @@ export async function POST(request, { params }) {
     }
 
     // Get inventory to find order ID
-    const inventories = await storage.readData('inventories.json')
-    if (!inventories) {
-      return NextResponse.json(
-        { error: 'Inventories data not found' },
-        { status: 500 }
-      )
-    }
-    
-    const inventory = inventories.find(i => i.inventoryId === inventoryId)
+    const inventory = await inventoryStorage.getById(inventoryId)
     if (!inventory) {
       return NextResponse.json(
         { error: 'Inventory not found' },

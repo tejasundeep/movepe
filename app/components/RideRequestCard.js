@@ -5,7 +5,6 @@ import { Card, Badge, Button, Row, Col, Spinner } from 'react-bootstrap';
 import { FaMapMarkerAlt, FaBox, FaUser, FaPhone, FaClock, FaMoneyBillWave } from 'react-icons/fa';
 
 export default function RideRequestCard({ request, onAccept, onDecline }) {
-  console.log('RideRequestCard rendering with request:', request);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 

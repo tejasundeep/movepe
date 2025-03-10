@@ -1,0 +1,9 @@
+---
+description: Flow of the project
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+
+- Retrieve the project flow from the `flow.md` file.

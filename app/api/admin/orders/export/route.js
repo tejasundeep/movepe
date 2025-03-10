@@ -1,11 +1,12 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { storage } from '../../../../../lib/storage';
+import { orderStorage } from '../../../../../lib/storage';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../../../lib/auth';
 import fs from 'fs/promises';
 import path from 'path';
+import { auditService } from '../../../../../lib/services/auditService';
 
 // Ensure data directory exists
 const ensureDataDirectory = async () => {
@@ -40,19 +41,8 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Get orders from storage
-    let orders;
-    try {
-      orders = await storage.readData('orders.json');
-    } catch (error) {
-      console.warn('Orders file not found, using empty array');
-      orders = [];
-    }
-    
-    // If orders don't exist, use empty array
-    if (!orders) {
-      orders = [];
-    }
+    // Get orders from Prisma storage
+    const orders = await orderStorage.getAll();
     
     // Filter orders based on date range and status
     const filteredOrders = orders.filter(order => {

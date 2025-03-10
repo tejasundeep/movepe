@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../../../../lib/auth'
 import { vendorService } from '../../../../lib/services/vendorService'
-import { storage } from '../../../../lib/storage'
+import { orderStorage } from '../../../../lib/storage'
 import { withRateLimit } from '../../../../lib/middleware/rateLimitMiddleware'
 
 export const dynamic = 'force-dynamic'
@@ -27,7 +27,7 @@ async function getVendorEarnings(request) {
     }
 
     // Get orders data
-    const orders = await storage.readData('orders.json')
+    const orders = await orderStorage.getAll()
     if (!orders) {
       return NextResponse.json(
         { error: 'Failed to read orders data' },
@@ -37,13 +37,13 @@ async function getVendorEarnings(request) {
 
     // Get completed jobs (paid orders)
     const completedJobs = orders.filter(order => 
-      order && order.selectedVendorId === vendor.vendorId && 
+      order && order.vendorId === vendor.id && 
       order.status === 'Paid'
     ) || []
 
     // Calculate total earnings from jobs
     const jobEarnings = completedJobs.reduce((sum, order) => {
-      const amount = order.selectedQuote?.amount || 0
+      const amount = order.totalAmount || 0
       return sum + amount
     }, 0)
 
@@ -69,13 +69,13 @@ async function getVendorEarnings(request) {
     const thisMonthJobEarnings = completedJobs
       .filter(order => {
         try {
-          const paidDate = new Date(order.payment?.paidAt || order.updatedAt)
+          const paidDate = new Date(order.updatedAt)
           return paidDate.getMonth() === thisMonth && paidDate.getFullYear() === thisYear
         } catch (error) {
           return false
         }
       })
-      .reduce((sum, order) => sum + (order.selectedQuote?.amount || 0), 0)
+      .reduce((sum, order) => sum + (order.totalAmount || 0), 0)
 
     // This month's affiliate earnings
     const thisMonthAffiliateEarnings = (affiliateStats.commissionHistory || [])
@@ -96,13 +96,13 @@ async function getVendorEarnings(request) {
     const lastMonthJobEarnings = completedJobs
       .filter(order => {
         try {
-          const paidDate = new Date(order.payment?.paidAt || order.updatedAt)
+          const paidDate = new Date(order.updatedAt)
           return paidDate.getMonth() === lastMonth && paidDate.getFullYear() === lastMonthYear
         } catch (error) {
           return false
         }
       })
-      .reduce((sum, order) => sum + (order.selectedQuote?.amount || 0), 0)
+      .reduce((sum, order) => sum + (order.totalAmount || 0), 0)
 
     // Last month's affiliate earnings
     const lastMonthAffiliateEarnings = (affiliateStats.commissionHistory || [])

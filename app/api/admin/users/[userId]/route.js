@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { storage } from '../../../../../lib/storage';
+import { userStorage } from '../../../../../lib/storage';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../../../lib/auth';
 import bcrypt from 'bcryptjs';
@@ -22,11 +22,8 @@ export async function GET(request, { params }) {
 
     const { userId } = params;
     
-    // Get users from storage
-    const users = await storage.readData('users.json') || [];
-    
-    // Find user by ID
-    const user = users.find(user => user.id === userId);
+    // Get user from Prisma storage
+    const user = await userStorage.getById(userId);
     
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -59,43 +56,36 @@ export async function PUT(request, { params }) {
     const { userId } = params;
     const userData = await request.json();
     
-    // Get users from storage
-    const users = await storage.readData('users.json') || [];
+    // Get user from Prisma storage
+    const user = await userStorage.getById(userId);
     
-    // Find user index
-    const userIndex = users.findIndex(user => user.id === userId);
-    
-    if (userIndex === -1) {
+    if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     
     // Check if email is being changed and if it already exists
-    if (userData.email && userData.email !== users[userIndex].email) {
-      const emailExists = users.some(user => user.email === userData.email && user.id !== userId);
-      if (emailExists) {
+    if (userData.email && userData.email !== user.email) {
+      const existingUser = await userStorage.getByEmail(userData.email);
+      if (existingUser) {
         return NextResponse.json({ error: 'Email already in use' }, { status: 400 });
       }
     }
     
-    // Update user
-    const updatedUser = {
-      ...users[userIndex],
-      name: userData.name || users[userIndex].name,
-      email: userData.email || users[userIndex].email,
-      role: userData.role || users[userIndex].role,
-      phone: userData.phone || users[userIndex].phone,
-      whatsapp: userData.whatsapp || users[userIndex].whatsapp,
-      updatedAt: new Date().toISOString()
+    // Prepare update data
+    const updateData = {
+      name: userData.name,
+      email: userData.email,
+      role: userData.role,
+      phone: userData.phone,
     };
     
     // Update password if provided
     if (userData.password) {
-      updatedUser.password = await bcrypt.hash(userData.password, 10);
+      updateData.password = await bcrypt.hash(userData.password, 10);
     }
     
-    // Update user in storage
-    users[userIndex] = updatedUser;
-    await storage.writeData('users.json', users);
+    // Update user in Prisma storage
+    const updatedUser = await userStorage.update(userId, updateData);
     
     // Remove password from response
     const { password, ...userWithoutPassword } = updatedUser;
@@ -123,24 +113,20 @@ export async function DELETE(request, { params }) {
 
     const { userId } = params;
     
-    // Get users from storage
-    const users = await storage.readData('users.json') || [];
+    // Get user from Prisma storage
+    const user = await userStorage.getById(userId);
     
-    // Find user index
-    const userIndex = users.findIndex(user => user.id === userId);
-    
-    if (userIndex === -1) {
+    if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     
     // Prevent deleting admin users
-    if (users[userIndex].role === 'admin') {
+    if (user.role === 'admin') {
       return NextResponse.json({ error: 'Cannot delete admin users' }, { status: 403 });
     }
     
-    // Remove user from storage
-    users.splice(userIndex, 1);
-    await storage.writeData('users.json', users);
+    // Delete user from Prisma storage
+    await userStorage.delete(userId);
     
     return NextResponse.json({ message: 'User deleted successfully' });
   } catch (error) {

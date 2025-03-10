@@ -1,9 +1,10 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { storage } from '../../../../../lib/storage';
+import { orderStorage } from '../../../../../lib/storage';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../../../lib/auth';
+import { auditService } from '../../../../../lib/services/auditService';
 
 // GET a specific order
 export async function GET(request, { params }) {
@@ -21,15 +22,21 @@ export async function GET(request, { params }) {
 
     const { orderId } = params;
     
-    // Get orders from storage
-    const orders = await storage.readData('orders.json') || [];
-    
-    // Find order by ID
-    const order = orders.find(order => order.orderId === orderId);
+    // Get order from Prisma storage
+    const order = await orderStorage.getById(orderId);
     
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
+    
+    // Log the action
+    await auditService.logAction(
+      session.user.email,
+      'view_order',
+      'order',
+      orderId,
+      { orderId }
+    );
     
     return NextResponse.json(order);
   } catch (error) {
@@ -55,26 +62,24 @@ export async function PUT(request, { params }) {
     const { orderId } = params;
     const orderData = await request.json();
     
-    // Get orders from storage
-    const orders = await storage.readData('orders.json') || [];
+    // Get order from Prisma storage to check if it exists
+    const order = await orderStorage.getById(orderId);
     
-    // Find order index
-    const orderIndex = orders.findIndex(order => order.orderId === orderId);
-    
-    if (orderIndex === -1) {
+    if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
     
-    // Update order
-    const updatedOrder = {
-      ...orders[orderIndex],
-      ...orderData,
-      updatedAt: new Date().toISOString()
-    };
+    // Update order in Prisma storage
+    const updatedOrder = await orderStorage.update(orderId, orderData);
     
-    // Update order in storage
-    orders[orderIndex] = updatedOrder;
-    await storage.writeData('orders.json', orders);
+    // Log the action
+    await auditService.logAction(
+      session.user.email,
+      'update_order',
+      'order',
+      orderId,
+      { orderId, updates: Object.keys(orderData) }
+    );
     
     return NextResponse.json(updatedOrder);
   } catch (error) {
@@ -99,19 +104,24 @@ export async function DELETE(request, { params }) {
 
     const { orderId } = params;
     
-    // Get orders from storage
-    const orders = await storage.readData('orders.json') || [];
+    // Get order from Prisma storage to check if it exists
+    const order = await orderStorage.getById(orderId);
     
-    // Find order index
-    const orderIndex = orders.findIndex(order => order.orderId === orderId);
-    
-    if (orderIndex === -1) {
+    if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
     
-    // Remove order from storage
-    orders.splice(orderIndex, 1);
-    await storage.writeData('orders.json', orders);
+    // Delete order from Prisma storage
+    await orderStorage.delete(orderId);
+    
+    // Log the action
+    await auditService.logAction(
+      session.user.email,
+      'delete_order',
+      'order',
+      orderId,
+      { orderId }
+    );
     
     return NextResponse.json({ message: 'Order deleted successfully' });
   } catch (error) {

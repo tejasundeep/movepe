@@ -24,7 +24,7 @@ export async function GET(request) {
     }
 
     // Get active deliveries for this rider
-    const activeDeliveries = await orderService.getActiveDeliveriesForRider(rider.riderId);
+    const activeDeliveries = await orderService.getActiveDeliveriesForRider(rider.id);
 
     return NextResponse.json({
       success: true,
